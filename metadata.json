@@ -1,0 +1,6 @@
+{
+  "name": "Aura Command Center",
+  "description": "Aura Command Center is an independent global telemetry and multi-domain perimeter dashboard featuring cinematic geo-mapping and stealth threat intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

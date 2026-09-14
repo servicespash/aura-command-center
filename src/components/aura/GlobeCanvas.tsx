@@ -160,6 +160,24 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
       raf = requestAnimationFrame(draw);
     };
 
+    const onMouseMove = (ev: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+      
+      let hovered: GeoNode | null = null;
+      let minD = 20; 
+      for (const hit of hits) {
+        const d = Math.hypot(hit.x - x, hit.y - y);
+        if (d < minD) {
+          minD = d;
+          hovered = hit.node;
+        }
+      }
+      canvas.style.cursor = hovered ? "pointer" : "default";
+    };
+    canvas.addEventListener("mousemove", onMouseMove);
+
     const onClick = (ev: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
@@ -177,6 +195,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
     return () => {
       cancelAnimationFrame(raf);
       canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", resize);
     };
   }, []);
