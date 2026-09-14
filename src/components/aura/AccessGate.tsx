@@ -3,9 +3,24 @@ import { useState } from "react";
 type Stage = 0 | 1 | 2;
 
 const STAGES = [
-  { label: "Identity assertion", hint: "Whitelisted architect email", placeholder: "architect@domain", type: "email" },
-  { label: "TOTP / biometric", hint: "6-digit authenticator assertion", placeholder: "••••••", type: "text" },
-  { label: "Master session key", hint: "Pre-shared cryptographic key", placeholder: "AURA-••••-••••", type: "password" },
+  {
+    label: "Identity assertion",
+    hint: "Whitelisted architect email",
+    placeholder: "architect@domain",
+    type: "email",
+  },
+  {
+    label: "TOTP / biometric",
+    hint: "6-digit authenticator assertion",
+    placeholder: "••••••",
+    type: "text",
+  },
+  {
+    label: "Master session key",
+    hint: "Pre-shared cryptographic key",
+    placeholder: "AURA-••••-••••",
+    type: "password",
+  },
 ] as const;
 
 /**

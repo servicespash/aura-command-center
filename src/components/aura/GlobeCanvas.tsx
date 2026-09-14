@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import * as d3 from "d3";
 import { threatBand, threatScore, type GeoNode } from "./data";
 
 export type { GeoNode };
@@ -11,12 +12,14 @@ function cssVar(name: string, fallback: string) {
 
 type Props = {
   nodes: GeoNode[];
-  selectedId?: string | null;
+  selectedId?: string | null | undefined;
   onSelect?: (node: GeoNode) => void;
+  mode: "globe" | "map";
+  zoom: number;
 };
 
 /** Rotating wireframe earth. Nodes are colored by live threat score and clickable. */
-export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
+export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
@@ -24,6 +27,8 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
   selectedRef.current = selectedId ?? null;
   const selectHandler = useRef(onSelect);
   selectHandler.current = onSelect;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -41,7 +46,6 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
 
     let raf = 0;
     let spin = 0;
-    let zoom = 1;
     // Screen positions of the last frame, used for click hit-testing.
     let hits: { node: GeoNode; x: number; y: number }[] = [];
 
@@ -66,7 +70,11 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
 
     const nodeColor = (score: number) => {
       const band = threatBand(score);
-      return band === "critical" ? colors.critical : band === "elevated" ? colors.elevated : colors.clear;
+      return band === "critical"
+        ? colors.critical
+        : band === "elevated"
+          ? colors.elevated
+          : colors.clear;
     };
 
     const draw = () => {
@@ -75,52 +83,66 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
       const cx = w / 2;
       const cy = h / 2;
       const selected = nodesRef.current.find((n) => n.id === selectedRef.current) ?? null;
-      const r = Math.min(w, h) * 0.38 * zoom;
+
+      const projection = d3
+        .geoEquirectangular()
+        .scale(w / (2 * Math.PI))
+        .translate([cx, cy]);
+
+      const r = Math.min(w, h) * 0.38 * zoomRef.current;
 
       // Ease toward the selected node (centered, zoomed) or free rotation.
-      if (selected) {
-        const target = -selected.lon;
-        let delta = ((target - spin + 540) % 360) - 180;
-        spin += delta * 0.08;
-        zoom += (1.35 - zoom) * 0.06;
-      } else {
-        spin = (spin + 0.12) % 360;
-        zoom += (1 - zoom) * 0.06;
+      if (mode === "globe") {
+        if (selected) {
+          const target = -selected.lon;
+          const delta = ((target - spin + 540) % 360) - 180;
+          spin += delta * 0.08;
+        } else {
+          spin = (spin + 0.12) % 360;
+        }
       }
 
       ctx.clearRect(0, 0, w, h);
       ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
 
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.stroke();
+      const graticule = d3.geoGraticule10();
 
-      for (let lat = -60; lat <= 60; lat += 30) {
+      if (mode === "globe") {
         ctx.beginPath();
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const p = project(lat, lon, r, cx, cy);
-          if (!p.visible) continue;
-          ctx.lineTo(p.x, p.y);
-        }
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
-      }
 
-      for (let lon = -180; lon < 180; lon += 30) {
         ctx.beginPath();
-        for (let lat = -90; lat <= 90; lat += 4) {
-          const p = project(lat, lon, r, cx, cy);
-          if (!p.visible) continue;
-          ctx.lineTo(p.x, p.y);
-        }
+        // Project graticule points for globe
+        const path = d3.geoPath(d3.geoOrthographic().scale(r).translate([cx, cy]), ctx);
+        path(graticule);
+        ctx.stroke();
+      } else {
+        // Map view: draw simple grid with D3 projection
+        ctx.beginPath();
+        const path = d3.geoPath(
+          d3
+            .geoEquirectangular()
+            .scale(r / Math.PI)
+            .translate([cx, cy]),
+          ctx,
+        );
+        path(graticule);
         ctx.stroke();
       }
 
       const t = performance.now() / 1000;
       hits = [];
       for (const n of nodesRef.current) {
-        const p = project(n.lat, n.lon, r, cx, cy);
-        if (!p.visible) continue;
+        let p;
+        if (mode === "globe") {
+          p = project(n.lat, n.lon, r, cx, cy);
+          if (!p.visible) continue;
+        } else {
+          const coords = projection([n.lon, n.lat]);
+          p = { x: coords![0], y: coords![1], visible: true };
+        }
         hits.push({ node: n, x: p.x, y: p.y });
 
         const score = threatScore(n);
@@ -148,11 +170,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
           ctx.stroke();
           ctx.font = "11px ui-monospace, monospace";
           ctx.fillStyle = colors.primary;
-          ctx.fillText(
-            `${n.label}  ${n.lat.toFixed(2)}, ${n.lon.toFixed(2)}`,
-            p.x + 20,
-            p.y - 6,
-          );
+          ctx.fillText(`${n.label}  ${n.lat.toFixed(2)}, ${n.lon.toFixed(2)}`, p.x + 20, p.y - 6);
           ctx.fillText(`score ${score}`, p.x + 20, p.y + 9);
         }
       }
@@ -164,9 +182,9 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
-      
+
       let hovered: GeoNode | null = null;
-      let minD = 20; 
+      let minD = 20;
       for (const hit of hits) {
         const d = Math.hypot(hit.x - x, hit.y - y);
         if (d < minD) {
@@ -198,7 +216,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect }: Props) {
       canvas.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [mode]);
 
   return (
     <canvas

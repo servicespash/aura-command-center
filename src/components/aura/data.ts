@@ -260,10 +260,34 @@ export type Tenant = {
 };
 
 export const SEED_TENANTS: Tenant[] = [
-  { domain: "pash.services", status: "verified", method: "Google OAuth", key: "tk_live_9f13a02", events24h: 184_302 },
-  { domain: "edge.pash.services", status: "verified", method: "DNS TXT", key: "tk_live_4c88b71", events24h: 92_118 },
-  { domain: "client-atlas.io", status: "pending", method: "DNS TXT", key: "tk_pend_000000", events24h: 0 },
-  { domain: "vault.northgate.co", status: "failed", method: "DNS TXT", key: "tk_none", events24h: 0 },
+  {
+    domain: "pash.services",
+    status: "verified",
+    method: "Google OAuth",
+    key: "tk_live_9f13a02",
+    events24h: 184_302,
+  },
+  {
+    domain: "edge.pash.services",
+    status: "verified",
+    method: "DNS TXT",
+    key: "tk_live_4c88b71",
+    events24h: 92_118,
+  },
+  {
+    domain: "client-atlas.io",
+    status: "pending",
+    method: "DNS TXT",
+    key: "tk_pend_000000",
+    events24h: 0,
+  },
+  {
+    domain: "vault.northgate.co",
+    status: "failed",
+    method: "DNS TXT",
+    key: "tk_none",
+    events24h: 0,
+  },
 ];
 
 export type EgressNode = {
@@ -276,12 +300,54 @@ export type EgressNode = {
 };
 
 export const EGRESS_NODES: EgressNode[] = [
-  { id: "GH-01", region: "eu-central", city: "Frankfurt", decoy: "185.22.14.9", latency: 38, masked: true },
-  { id: "GH-02", region: "us-east", city: "Ashburn", decoy: "23.129.64.217", latency: 96, masked: true },
-  { id: "GH-03", region: "ap-south", city: "Mumbai", decoy: "103.86.49.12", latency: 142, masked: true },
-  { id: "GH-04", region: "sa-east", city: "Sao Paulo", decoy: "177.54.203.88", latency: 168, masked: true },
-  { id: "GH-05", region: "af-east", city: "Nairobi", decoy: "197.248.11.64", latency: 74, masked: true },
-  { id: "GH-06", region: "ap-southeast", city: "Singapore", decoy: "146.70.83.201", latency: 121, masked: false },
+  {
+    id: "GH-01",
+    region: "eu-central",
+    city: "Frankfurt",
+    decoy: "185.22.14.9",
+    latency: 38,
+    masked: true,
+  },
+  {
+    id: "GH-02",
+    region: "us-east",
+    city: "Ashburn",
+    decoy: "23.129.64.217",
+    latency: 96,
+    masked: true,
+  },
+  {
+    id: "GH-03",
+    region: "ap-south",
+    city: "Mumbai",
+    decoy: "103.86.49.12",
+    latency: 142,
+    masked: true,
+  },
+  {
+    id: "GH-04",
+    region: "sa-east",
+    city: "Sao Paulo",
+    decoy: "177.54.203.88",
+    latency: 168,
+    masked: true,
+  },
+  {
+    id: "GH-05",
+    region: "af-east",
+    city: "Nairobi",
+    decoy: "197.248.11.64",
+    latency: 74,
+    masked: true,
+  },
+  {
+    id: "GH-06",
+    region: "ap-southeast",
+    city: "Singapore",
+    decoy: "146.70.83.201",
+    latency: 121,
+    masked: false,
+  },
 ];
 
 const ACTORS = [

@@ -35,13 +35,7 @@ function Bar({ label, value, weight }: { label: string; value: number; weight: s
 
 const RISK_VALUE = { low: 15, medium: 55, high: 95 } as const;
 
-export function NodeDetailModal({
-  node,
-  onClose,
-}: {
-  node: GeoNode | null;
-  onClose: () => void;
-}) {
+export function NodeDetailModal({ node, onClose }: { node: GeoNode | null; onClose: () => void }) {
   if (!node) return null;
   const score = threatScore(node);
   const band = threatBand(score);
@@ -66,11 +60,7 @@ export function NodeDetailModal({
         </div>
 
         <div className="space-y-3">
-          <Bar
-            label="Connection frequency"
-            weight="40%"
-            value={frequencyScore(node.connections)}
-          />
+          <Bar label="Connection frequency" weight="40%" value={frequencyScore(node.connections)} />
           <Bar label="Geolocation risk" weight="35%" value={RISK_VALUE[node.geoRisk]} />
           <Bar label="Subdomain target risk" weight="25%" value={RISK_VALUE[node.subdomainRisk]} />
         </div>

@@ -14,6 +14,10 @@ import { NodeDetailModal } from "./NodeDetailModal";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { ScanlineOverlay } from "./ScanlineOverlay";
 import { FloatingHUD } from "./FloatingHUD";
+import { SystemDiagnosticsDrawer } from "./SystemDiagnosticsDrawer";
+import { AtmosphereLayer } from "./AtmosphereLayer";
+import { GlobalCrtOverlay } from "./GlobalCrtOverlay";
+import { TacticalZoomController } from "./TacticalZoomController";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { generateSessionReport } from "@/lib/report-utils";
 import { Button } from "../ui/button";
@@ -26,14 +30,16 @@ import {
 } from "@/components/ui/context-menu";
 
 function severityClass(s: ThreatEvent["severity"]) {
-  return s === "critical" ? "text-destructive" : s === "medium" ? "text-warning" : "text-primary";
+  return s === "critical" ? "text-destructive" : s === "elevated" ? "text-warning" : "text-primary";
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="panel rounded-lg px-4 py-3">
       <p className="label-hud">{label}</p>
-      <p className={`mt-1.5 font-display text-xl font-bold ${tone ?? "text-foreground"}`}>{value}</p>
+      <p className={`mt-1.5 font-display text-xl font-bold ${tone ?? "text-foreground"}`}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -44,7 +50,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   );
   const [egressIndex, setEgressIndex] = useState(0);
   const [tenants, setTenants] = useState<Tenant[]>(SEED_TENANTS);
-  const [viewMode, setViewMode] = useState<"left" | "right">("left");
+  const [viewMode, setViewMode] = useState<"globe" | "map">("globe");
   const [activeNodes, setActiveNodes] = useState(SEED_NODES.length * 214);
 
   const addTenant = (domain: string, method: string, key: string) => {
@@ -58,11 +64,29 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   useKeyboardShortcut("k", () => console.log("Search functionality not implemented"));
 
   const handleGenerateReport = () => {
-    generateSessionReport({ tenants, events, activeNodes, egressIndex });
+    const reportData = {
+      timestamp: new Date().toISOString(),
+      tenants,
+      events,
+      activeNodes,
+      egressIndex,
+    };
+    generateSessionReport(reportData);
   };
 
   useEffect(() => {
     let feedTimeout: number;
+    let frameId: number;
+    let time = 0;
+
+    const animateGrid = () => {
+      time += 0.01;
+      const breath = Math.sin(time) * 10;
+      document.documentElement.style.setProperty("--grid-breath", `${breath}px`);
+      frameId = requestAnimationFrame(animateGrid);
+    };
+    frameId = requestAnimationFrame(animateGrid);
+
     const scheduleFeed = () => {
       const delay = 2000 + Math.random() * 3000;
       feedTimeout = window.setTimeout(() => {
@@ -70,6 +94,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         setEvents((prev) => [newEvent, ...prev].slice(0, 14));
         if (newEvent.severity === "critical") {
           setActiveNodes((prev) => prev + Math.floor(Math.random() * 10));
+          alert("CRITICAL THREAT DETECTED");
         }
         scheduleFeed();
       }, delay);
@@ -79,31 +104,85 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     const rotate = window.setInterval(() => {
       setEgressIndex((i) => (i + 1) % EGRESS_NODES.length);
     }, 5000);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      document.documentElement.style.setProperty("--grid-x", `${e.clientX / 10}px`);
+      document.documentElement.style.setProperty("--grid-y", `${e.clientY / 10}px`);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+
     return () => {
       window.clearTimeout(feedTimeout);
       window.clearInterval(rotate);
+      window.removeEventListener("mousemove", handleMouseMove);
+      cancelAnimationFrame(frameId);
     };
   }, []);
 
   const [selectedNode, setSelectedNode] = useState<GeoNode | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
   const critical = events.filter((e) => e.severity === "critical").length;
   const egress = EGRESS_NODES[egressIndex]!;
 
+  // Mock AudioContext
+  useEffect(() => {
+    if (isAudioEnabled) {
+      const audioCtx = new (
+        window.AudioContext ||
+        (window as unknown as Window & { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
+      )();
+      const oscillator = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(60, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+      oscillator.connect(gain);
+      gain.connect(audioCtx.destination);
+      oscillator.start();
+      return () => oscillator.stop();
+    }
+  }, [isAudioEnabled]);
+
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8 relative">
+      <GlobalCrtOverlay />
+      <AtmosphereLayer />
       <ScanlineOverlay />
       <FloatingHUD />
+      <SystemDiagnosticsDrawer
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+      />
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="label-hud">Artificial Unified Response &amp; Analytics Network</p>
           <h1 className="text-glow mt-1 text-xl font-bold text-primary sm:text-2xl">AURA-NET</h1>
         </div>
         <div className="flex items-center gap-3">
-          <ToggleSwitch 
-            labelLeft="Live Feed" 
-            labelRight="Archived Data" 
-            onChange={setViewMode} 
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => setIsDiagnosticsOpen(true)}
+          >
+            DIAGNOSTICS
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+          >
+            AUDIO: {isAudioEnabled ? "ON" : "OFF"}
+          </Button>
+          <ToggleSwitch
+            labelLeft="Globe"
+            labelRight="Map"
+            onChange={(v) => setViewMode(v === "left" ? "globe" : "map")}
           />
           <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span className="pulse-node inline-block h-2 w-2 rounded-full bg-success" />
@@ -129,10 +208,25 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         <div className="panel scanline min-w-0 flex-1 rounded-lg p-3">
           <div className="flex items-center justify-between px-1">
             <p className="label-hud">Cinematic earth · geoip stream</p>
-            <p className="text-[10px] text-muted-foreground">offline geoip · zero external latency</p>
+            <p className="text-[10px] text-muted-foreground">
+              offline geoip · zero external latency
+            </p>
           </div>
-          <div className="mt-2 h-[320px] sm:h-[420px] w-full">
-            <GlobeCanvas nodes={SEED_NODES} selectedId={selectedNode?.id} onSelect={setSelectedNode} />
+          <div className="mt-2 h-[320px] sm:h-[420px] w-full relative">
+            <TacticalZoomController
+              onZoomIn={() => setZoom((z) => Math.min(z + 0.2, 3))}
+              onZoomOut={() => setZoom((z) => Math.max(z - 0.2, 0.5))}
+              onReset={() => setZoom(1)}
+              onToggleMode={() => setViewMode((m) => (m === "globe" ? "map" : "globe"))}
+              mode={viewMode}
+            />
+            <GlobeCanvas
+              nodes={SEED_NODES}
+              selectedId={selectedNode?.id}
+              onSelect={setSelectedNode}
+              mode={viewMode}
+              zoom={zoom}
+            />
           </div>
         </div>
 
@@ -164,20 +258,18 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
               ))}
             </ul>
           </div>
-          <Button onClick={handleGenerateReport} variant="outline" className="w-full text-xs">GENERATE AUDIT REPORT</Button>
+          <Button onClick={handleGenerateReport} variant="outline" className="w-full text-xs">
+            GENERATE AUDIT REPORT
+          </Button>
         </div>
       </section>
 
       {selectedNode && (
-        <NodeDetailModal 
-            node={selectedNode} 
-            isOpen={!!selectedNode} 
-            onClose={() => setSelectedNode(null)} 
-        />
+        <NodeDetailModal node={selectedNode} onClose={() => setSelectedNode(null)} />
       )}
 
-      <section className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <div className="panel rounded-lg p-4">
+      <section className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="panel rounded-lg p-4 overflow-hidden">
           <div className="flex items-center justify-between">
             <p className="label-hud">Multi-tenant domain perimeter</p>
             <OnboardDomainModal onAdd={addTenant} />
@@ -221,18 +313,20 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
           </div>
         </div>
 
-        <div className="panel rounded-lg p-4">
+        <div className="panel rounded-lg p-4 overflow-hidden">
           <p className="label-hud">Ghost-node obfuscation mesh</p>
           <p className="mt-3 text-[11px] text-muted-foreground">
             Outbound lookups rotate egress; scanners resolve decoy fingerprints only.
           </p>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-2 overflow-y-auto max-h-[300px]">
             {EGRESS_NODES.map((n, i) => (
               <li
                 key={n.id}
                 onClick={() => setEgressIndex(i)}
                 className={`flex cursor-pointer items-center justify-between rounded border px-3 py-2 text-xs transition-colors ${
-                  i === egressIndex ? "border-primary/60 bg-secondary" : "border-border/60 hover:bg-border/20"
+                  i === egressIndex
+                    ? "border-primary/60 bg-secondary"
+                    : "border-border/60 hover:bg-border/20"
                 }`}
               >
                 <span className="text-foreground">{n.id.toUpperCase()}</span>
@@ -248,7 +342,8 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
       </section>
 
       <p className="mt-6 text-center text-[11px] text-muted-foreground">
-        Interface layer online · verification, GeoIP ingestion and tenant isolation await backend activation
+        Interface layer online · verification, GeoIP ingestion and tenant isolation await backend
+        activation
       </p>
     </main>
   );

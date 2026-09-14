@@ -71,17 +71,8 @@
 
   --glow-primary: 0 0 0 1px oklch(0.82 0.16 195 / 25%), 0 0 24px oklch(0.82 0.16 195 / 12%);
   --glow-alert: 0 0 0 1px oklch(0.63 0.22 20 / 35%), 0 0 24px oklch(0.63 0.22 20 / 18%);
-  --gradient-panel: linear-gradient(
-    160deg,
-    oklch(0.22 0.04 250 / 90%),
-    oklch(0.17 0.03 250 / 90%)
-  );
-  --gradient-scan: linear-gradient(
-    90deg,
-    transparent,
-    oklch(0.82 0.16 195 / 45%),
-    transparent
-  );
+  --gradient-panel: linear-gradient(160deg, oklch(0.22 0.04 250 / 90%), oklch(0.17 0.03 250 / 90%));
+  --gradient-scan: linear-gradient(90deg, transparent, oklch(0.82 0.16 195 / 45%), transparent);
 }
 
 @layer base {
@@ -97,7 +88,8 @@
       linear-gradient(var(--color-grid) 1px, transparent 1px),
       linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
     background-size: 96px 96px;
-    animation: grid-move 20s linear infinite;
+    background-position: calc(var(--grid-x, 0px) + var(--grid-breath, 0px))
+      calc(var(--grid-y, 0px) + var(--grid-breath, 0px));
   }
 
   h1,
@@ -108,15 +100,17 @@
   }
 }
 
-@keyframes grid-move {
-  0% { background-position: 0 0; }
-  100% { background-position: 96px 96px; }
-}
-
 @keyframes crt-flicker {
-  0%, 100% { opacity: 0.98; }
-  50% { opacity: 0.95; }
-  51% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.98;
+  }
+  50% {
+    opacity: 0.95;
+  }
+  51% {
+    opacity: 1;
+  }
 }
 
 @utility panel {
@@ -138,7 +132,7 @@
 @utility scanline {
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
 @utility text-glow {
@@ -170,4 +164,31 @@
 
 @utility pulse-node {
   animation: aura-pulse 1.8s ease-in-out infinite;
+}
+
+@utility glitch-hover {
+  &:hover {
+    animation: glitch 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+  }
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
 }

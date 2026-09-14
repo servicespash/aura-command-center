@@ -1,6 +1,12 @@
 import { ReactNode } from "react";
 
-export function Scanline({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Scanline({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={`scanline ${className}`}>
       {children}
