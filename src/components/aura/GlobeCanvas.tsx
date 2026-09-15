@@ -1,6 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
+import * as topojson from "topojson-client";
 import { threatBand, threatScore, type GeoNode } from "./data";
+import { useSpring } from "@react-spring/web";
+import { useDrag } from "@use-gesture/react";
 
 export type { GeoNode };
 
@@ -30,6 +33,69 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
 
+  const targetLocationRef = useRef<[number, number] | null>(null);
+  const worldAtlas = useRef<GeoJSON.FeatureCollection | null>(null);
+
+  // React Spring for physics-based rotation
+  const [{ spinX, spinY, animZoom }, api] = useSpring(() => ({
+    spinX: 0,
+    spinY: 0,
+    animZoom: zoom,
+    config: { mass: 1, tension: 120, friction: 14 },
+  }));
+
+  useEffect(() => {
+    api.start({ animZoom: zoom });
+  }, [zoom, api]);
+
+  const interactionTimer = useRef<number | null>(null);
+  const autoRotate = useRef(true);
+
+  const resetInteraction = () => {
+    autoRotate.current = false;
+    if (interactionTimer.current) window.clearTimeout(interactionTimer.current);
+    interactionTimer.current = window.setTimeout(() => {
+      autoRotate.current = true;
+    }, 3000);
+  };
+
+  // useDrag for smooth swipe gestures
+  useDrag(
+    ({ movement: [mx, my], down, velocity: [vx, vy], direction: [dx, dy] }) => {
+      if (mode !== "globe") return;
+      if (down) {
+        resetInteraction();
+        // Pause auto-rotation completely during drag, spin relative to current spring value
+        const sensitivity = 0.2 / animZoom.get();
+        api.start({
+          spinX: spinX.get() + mx * sensitivity,
+          spinY: spinY.get() - my * sensitivity,
+          immediate: true,
+        });
+      } else {
+        // Inertia throw on release
+        const sensitivity = 50 / animZoom.get();
+        api.start({
+          spinX: spinX.get() + vx * dx * sensitivity,
+          spinY: spinY.get() - vy * dy * sensitivity,
+          config: { mass: 1, tension: 40, friction: 30 }, // slower decay for swipe
+        });
+      }
+    },
+    { target: ref, filterTaps: true, eventOptions: { pointer: true } },
+  );
+
+  useEffect(() => {
+    d3.json("https://unpkg.com/world-atlas@2.0.2/countries-110m.json").then((data) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const topology = data as any;
+      worldAtlas.current = topojson.feature(
+        topology,
+        topology.objects.countries,
+      ) as unknown as GeoJSON.FeatureCollection;
+    });
+  }, []);
+
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -38,6 +104,8 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
 
     const colors = {
       grid: cssVar("--grid", "rgba(120,220,255,0.12)"),
+      land: cssVar("--land", "rgba(120,220,255,0.03)"),
+      border: cssVar("--border", "rgba(120,220,255,0.15)"),
       clear: cssVar("--success", "oklch(0.75 0.16 160)"),
       elevated: cssVar("--warning", "oklch(0.8 0.15 80)"),
       critical: cssVar("--destructive", "oklch(0.63 0.22 20)"),
@@ -45,9 +113,8 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
     };
 
     let raf = 0;
-    let spin = 0;
-    // Screen positions of the last frame, used for click hit-testing.
     let hits: { node: GeoNode; x: number; y: number }[] = [];
+    let latestProjection: d3.GeoProjection | null = null;
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -58,15 +125,6 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
     };
     resize();
     window.addEventListener("resize", resize);
-
-    const project = (lat: number, lon: number, r: number, cx: number, cy: number) => {
-      const phi = (90 - lat) * (Math.PI / 180);
-      const theta = (lon + spin) * (Math.PI / 180);
-      const x = r * Math.sin(phi) * Math.sin(theta);
-      const y = -r * Math.cos(phi);
-      const z = r * Math.sin(phi) * Math.cos(theta);
-      return { x: cx + x, y: cy + y, visible: z > 0, z };
-    };
 
     const nodeColor = (score: number) => {
       const band = threatBand(score);
@@ -84,81 +142,152 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
       const cy = h / 2;
       const selected = nodesRef.current.find((n) => n.id === selectedRef.current) ?? null;
 
-      const projection = d3
-        .geoEquirectangular()
-        .scale(w / (2 * Math.PI))
-        .translate([cx, cy]);
+      const z = animZoom.get();
+      const r = Math.min(w, h) * 0.38 * z;
 
-      const r = Math.min(w, h) * 0.38 * zoomRef.current;
-
-      // Ease toward the selected node (centered, zoomed) or free rotation.
       if (mode === "globe") {
         if (selected) {
-          const target = -selected.lon;
-          const delta = ((target - spin + 540) % 360) - 180;
-          spin += delta * 0.08;
-        } else {
-          spin = (spin + 0.12) % 360;
+          const targetX = -selected.lon;
+          const targetY = -selected.lat;
+          // Smooth animate to target
+          const currentX = spinX.get();
+          const deltaX = ((targetX - currentX + 540) % 360) - 180;
+          api.start({
+            spinX: currentX + deltaX * 0.1,
+            spinY: spinY.get() + (targetY - spinY.get()) * 0.1,
+            immediate: true,
+          });
+        } else if (targetLocationRef.current) {
+          const targetX = -targetLocationRef.current[0];
+          const targetY = -targetLocationRef.current[1];
+          const currentX = spinX.get();
+          const deltaX = ((targetX - currentX + 540) % 360) - 180;
+          api.start({
+            spinX: currentX + deltaX * 0.1,
+            spinY: spinY.get() + (targetY - spinY.get()) * 0.1,
+            immediate: true,
+          });
+        } else if (autoRotate.current) {
+          api.start({
+            spinX: (spinX.get() + 0.12) % 360,
+            spinY: spinY.get() + (0 - spinY.get()) * 0.05, // slowly return to equator
+            immediate: true,
+          });
         }
       }
 
       ctx.clearRect(0, 0, w, h);
+
+      const projection =
+        mode === "globe"
+          ? d3.geoOrthographic().scale(r).translate([cx, cy]).rotate([spinX.get(), spinY.get()])
+          : d3
+              .geoEquirectangular()
+              .scale(r / Math.PI)
+              .translate([cx, cy]);
+      latestProjection = projection;
+
+      const path = d3.geoPath(projection, ctx);
+
+      // Draw Countries
+      if (worldAtlas.current) {
+        // Calculate country scores
+        const countryScores: Record<string, { total: number; count: number }> = {};
+        for (const n of nodesRef.current) {
+          if (!countryScores[n.country]) {
+            countryScores[n.country] = { total: 0, count: 0 };
+          }
+          countryScores[n.country].total += threatScore(n);
+          countryScores[n.country].count += 1;
+        }
+
+        // Zoom sensitive scaling
+        const scaleFactor = Math.max(0.2, 1 / z);
+        const baseLineWidth = 0.5 * scaleFactor;
+
+        // Draw each feature
+        for (const feature of worldAtlas.current.features) {
+          const name = feature.properties?.name;
+          let fill = colors.land;
+
+          if (name && countryScores[name]) {
+            const avgScore = countryScores[name].total / countryScores[name].count;
+            if (avgScore > 75) {
+              fill = "oklch(0.63 0.22 20 / 0.4)"; // critical tint
+            } else if (avgScore > 40) {
+              fill = "oklch(0.8 0.15 80 / 0.3)"; // warning tint
+            } else {
+              fill = "oklch(0.75 0.16 160 / 0.2)"; // clear tint
+            }
+          }
+
+          ctx.beginPath();
+          path(feature);
+          ctx.fillStyle = fill;
+          ctx.fill();
+          ctx.strokeStyle = colors.border;
+          ctx.lineWidth = baseLineWidth;
+          ctx.stroke();
+        }
+      }
+
+      // Draw Graticule
+      ctx.beginPath();
+      path(d3.geoGraticule10());
       ctx.strokeStyle = colors.grid;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
 
-      const graticule = d3.geoGraticule10();
-
+      // Draw Globe Outline
       if (mode === "globe") {
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.beginPath();
-        // Project graticule points for globe
-        const path = d3.geoPath(d3.geoOrthographic().scale(r).translate([cx, cy]), ctx);
-        path(graticule);
-        ctx.stroke();
-      } else {
-        // Map view: draw simple grid with D3 projection
-        ctx.beginPath();
-        const path = d3.geoPath(
-          d3
-            .geoEquirectangular()
-            .scale(r / Math.PI)
-            .translate([cx, cy]),
-          ctx,
-        );
-        path(graticule);
+        ctx.strokeStyle = colors.border;
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
       const t = performance.now() / 1000;
       hits = [];
+
       for (const n of nodesRef.current) {
-        let p;
+        const coords = projection([n.lon, n.lat]);
+        if (!coords) continue;
+
+        // For orthographic, we need to manually check if point is visible on the front hemisphere
+        let visible = true;
         if (mode === "globe") {
-          p = project(n.lat, n.lon, r, cx, cy);
-          if (!p.visible) continue;
-        } else {
-          const coords = projection([n.lon, n.lat]);
-          p = { x: coords![0], y: coords![1], visible: true };
+          // Calculate distance from center of rotation to determine if it's on the back
+          const gDistance = d3.geoDistance([n.lon, n.lat], [-spinX.get(), -spinY.get()]);
+          if (gDistance > Math.PI / 2 + 0.01) visible = false;
         }
+
+        if (!visible) continue;
+
+        const p = { x: coords[0], y: coords[1] };
         hits.push({ node: n, x: p.x, y: p.y });
 
         const score = threatScore(n);
         const color = nodeColor(score);
         const isSelected = selected?.id === n.id;
         const pulse = 0.5 + 0.5 * Math.sin(t * 2 + n.lat);
+        const nodeScale = Math.max(0.5, z);
 
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.95;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, isSelected ? 3.6 : 2.4 + (score / 100) * 1.6, 0, Math.PI * 2);
+        ctx.arc(
+          p.x,
+          p.y,
+          (isSelected ? 3.6 : 2.4 + (score / 100) * 1.6) * nodeScale,
+          0,
+          Math.PI * 2,
+        );
         ctx.fill();
 
         ctx.globalAlpha = 0.18 + 0.4 * pulse;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 4 + pulse * (6 + (score / 100) * 10), 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, (4 + pulse * (6 + (score / 100) * 10)) * nodeScale, 0, Math.PI * 2);
         ctx.strokeStyle = color;
         ctx.stroke();
         ctx.globalAlpha = 1;
@@ -178,7 +307,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
       raf = requestAnimationFrame(draw);
     };
 
-    const onMouseMove = (ev: MouseEvent) => {
+    const onPointerMove = (ev: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
@@ -192,9 +321,10 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
           hovered = hit.node;
         }
       }
-      canvas.style.cursor = hovered ? "pointer" : "default";
+      canvas.style.cursor = hovered ? "pointer" : "grab";
     };
-    canvas.addEventListener("mousemove", onMouseMove);
+
+    canvas.addEventListener("pointermove", onPointerMove);
 
     const onClick = (ev: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -205,23 +335,39 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
         const d = Math.hypot(hit.x - x, hit.y - y);
         if (d < 16 && (!best || d < best.d)) best = { node: hit.node, d };
       }
-      if (best) selectHandler.current?.(best.node);
+      if (best) {
+        selectHandler.current?.(best.node);
+        targetLocationRef.current = null;
+      } else if (latestProjection && latestProjection.invert) {
+        const lonLat = latestProjection.invert([x, y]);
+        if (lonLat && worldAtlas.current) {
+          for (const feature of worldAtlas.current.features) {
+            if (d3.geoContains(feature, lonLat)) {
+              const centroid = d3.geoCentroid(feature);
+              targetLocationRef.current = centroid;
+              break;
+            }
+          }
+        }
+      }
     };
     canvas.addEventListener("click", onClick);
 
     raf = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(raf);
+      if (interactionTimer.current) clearTimeout(interactionTimer.current);
       canvas.removeEventListener("click", onClick);
-      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("resize", resize);
     };
-  }, [mode]);
+  }, [mode, api, spinX, spinY]);
 
   return (
     <canvas
       ref={ref}
-      className="h-full w-full cursor-pointer"
+      className="h-full w-full cursor-pointer touch-none"
+      style={{ touchAction: "none" }}
       aria-label="Live global threat map — select a node for details"
     />
   );

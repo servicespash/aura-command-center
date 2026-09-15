@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { GlobeCanvas } from "./GlobeCanvas";
 import {
   EGRESS_NODES,
@@ -18,9 +18,13 @@ import { SystemDiagnosticsDrawer } from "./SystemDiagnosticsDrawer";
 import { AtmosphereLayer } from "./AtmosphereLayer";
 import { GlobalCrtOverlay } from "./GlobalCrtOverlay";
 import { TacticalZoomController } from "./TacticalZoomController";
+import { TerminalCommandPrompt } from "./TerminalCommandPrompt";
+import { CacheManagerModal } from "./CacheManagerModal";
+import { GeoSearch } from "./GeoSearch";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { generateSessionReport } from "@/lib/report-utils";
 import { Button } from "../ui/button";
+import { Trash2 } from "lucide-react";
 
 import {
   ContextMenu,
@@ -45,13 +49,73 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
 }
 
 export function CommandDeck({ onLock }: { onLock: () => void }) {
-  const [events, setEvents] = useState<ThreatEvent[]>(() =>
-    Array.from({ length: 6 }, () => randomEvent(SEED_NODES)),
-  );
+  const [events, setEvents] = useState<ThreatEvent[]>(() => {
+    const saved = localStorage.getItem("aura_events");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((e: { at: string | Date } & Record<string, unknown>) => ({
+          ...e,
+          at: new Date(e.at),
+        }));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return Array.from({ length: 6 }, () => randomEvent(SEED_NODES));
+  });
   const [egressIndex, setEgressIndex] = useState(0);
-  const [tenants, setTenants] = useState<Tenant[]>(SEED_TENANTS);
+  const [tenants, setTenants] = useState<Tenant[]>(() => {
+    const saved = localStorage.getItem("aura_tenants");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return SEED_TENANTS;
+  });
   const [viewMode, setViewMode] = useState<"globe" | "map">("globe");
   const [activeNodes, setActiveNodes] = useState(SEED_NODES.length * 214);
+
+  const tenantsRef = useRef(tenants);
+  tenantsRef.current = tenants;
+
+  useEffect(() => {
+    localStorage.setItem("aura_events", JSON.stringify(events));
+  }, [events]);
+
+  useEffect(() => {
+    localStorage.setItem("aura_tenants", JSON.stringify(tenants));
+  }, [tenants]);
+
+  const handleClearData = () => {
+    setEvents([]);
+    setTenants([]);
+    setActiveNodes(0);
+    localStorage.removeItem("aura_events");
+    localStorage.removeItem("aura_tenants");
+  };
+
+  const handleArchiveByDate = (cutoff: Date) => {
+    const toArchive = events.filter((e) => e.at < cutoff);
+    const toKeep = events.filter((e) => e.at >= cutoff);
+
+    if (toArchive.length > 0) {
+      const savedArchive = localStorage.getItem("aura_events_archive");
+      let currentArchive = [];
+      try {
+        if (savedArchive) currentArchive = JSON.parse(savedArchive);
+      } catch (e) {
+        console.error(e);
+      }
+
+      const newArchive = [...currentArchive, ...toArchive];
+      localStorage.setItem("aura_events_archive", JSON.stringify(newArchive));
+      setEvents(toKeep);
+    }
+  };
 
   const addTenant = (domain: string, method: string, key: string) => {
     setTenants((prev) => [
@@ -90,11 +154,12 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     const scheduleFeed = () => {
       const delay = 2000 + Math.random() * 3000;
       feedTimeout = window.setTimeout(() => {
-        const newEvent = randomEvent(SEED_NODES);
-        setEvents((prev) => [newEvent, ...prev].slice(0, 14));
-        if (newEvent.severity === "critical") {
-          setActiveNodes((prev) => prev + Math.floor(Math.random() * 10));
-          alert("CRITICAL THREAT DETECTED");
+        if (tenantsRef.current.length > 0) {
+          const newEvent = randomEvent(SEED_NODES);
+          setEvents((prev) => [newEvent, ...prev].slice(0, 14));
+          if (newEvent.severity === "critical") {
+            setActiveNodes((prev) => prev + Math.floor(Math.random() * 10));
+          }
         }
         scheduleFeed();
       }, delay);
@@ -148,7 +213,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   }, [isAudioEnabled]);
 
   return (
-    <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8 relative">
+    <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8 relative overflow-y-auto overflow-x-hidden scrollbar-none pb-12">
       <GlobalCrtOverlay />
       <AtmosphereLayer />
       <ScanlineOverlay />
@@ -157,12 +222,13 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         isOpen={isDiagnosticsOpen}
         onClose={() => setIsDiagnosticsOpen(false)}
       />
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 relative z-10">
         <div>
           <p className="label-hud">Artificial Unified Response &amp; Analytics Network</p>
           <h1 className="text-glow mt-1 text-xl font-bold text-primary sm:text-2xl">AURA-NET</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <CacheManagerModal onClearData={handleClearData} onArchiveByDate={handleArchiveByDate} />
           <Button
             variant="outline"
             size="sm"
@@ -197,22 +263,32 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </div>
       </header>
 
-      <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 relative z-10">
         <Stat label="Active nodes" value={String(activeNodes)} tone="text-primary" />
         <Stat label="Critical events" value={String(critical * 7 + 3)} tone="text-destructive" />
         <Stat label="Tenant domains" value={String(tenants.length)} />
         <Stat label="Ghost egress" value={egress.id.toUpperCase()} tone="text-warning" />
       </section>
 
-      <section className="mt-4 flex flex-col gap-4 lg:flex-row">
-        <div className="panel scanline min-w-0 flex-1 rounded-lg p-3">
-          <div className="flex items-center justify-between px-1">
-            <p className="label-hud">Cinematic earth · geoip stream</p>
-            <p className="text-[10px] text-muted-foreground">
-              offline geoip · zero external latency
-            </p>
+      <section className="mt-4 flex flex-col gap-4 lg:flex-row relative z-10">
+        <div className="panel scanline min-w-0 flex-1 rounded-lg p-3 flex flex-col relative z-10 overflow-visible">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-1 mb-2 gap-3 z-20">
+            <div>
+              <p className="label-hud">Cinematic earth · geoip stream</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                live geoip stream · zero external latency
+              </p>
+            </div>
+            <GeoSearch
+              nodes={SEED_NODES}
+              onSelect={(node) => {
+                setSelectedNode(node);
+                setViewMode("globe");
+                setZoom(2.5); // triggers smooth zoom in GlobeCanvas spring
+              }}
+            />
           </div>
-          <div className="mt-2 h-[320px] sm:h-[420px] w-full relative">
+          <div className="mt-2 flex-1 min-h-[320px] sm:min-h-[420px] w-full relative z-0">
             <TacticalZoomController
               onZoomIn={() => setZoom((z) => Math.min(z + 0.2, 3))}
               onZoomOut={() => setZoom((z) => Math.max(z - 0.2, 0.5))}
@@ -230,9 +306,11 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-4 lg:w-1/3">
-          <div className="panel rounded-lg p-4">
-            <p className="label-hud">Live threat ingestion</p>
+        <div className="flex w-full flex-col gap-4 lg:w-1/3 relative z-10">
+          <div className="panel rounded-lg p-4 flex-1 overflow-hidden">
+            <p className="label-hud">
+              Live threat ingestion {tenants.length === 0 && "(PAUSED - NO DOMAINS)"}
+            </p>
             <ul className="mt-3 space-y-2">
               {events.map((e) => (
                 <ContextMenu key={e.id}>
@@ -268,7 +346,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         <NodeDetailModal node={selectedNode} onClose={() => setSelectedNode(null)} />
       )}
 
-      <section className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 relative z-10">
         <div className="panel rounded-lg p-4 overflow-hidden">
           <div className="flex items-center justify-between">
             <p className="label-hud">Multi-tenant domain perimeter</p>
@@ -339,9 +417,15 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
             ))}
           </ul>
         </div>
+        <div className="panel rounded-lg p-4 overflow-hidden">
+          <p className="label-hud">Terminal Access</p>
+          <div className="mt-3">
+            <TerminalCommandPrompt />
+          </div>
+        </div>
       </section>
 
-      <p className="mt-6 text-center text-[11px] text-muted-foreground">
+      <p className="mt-6 text-center text-[11px] text-muted-foreground relative z-10">
         Interface layer online · verification, GeoIP ingestion and tenant isolation await backend
         activation
       </p>

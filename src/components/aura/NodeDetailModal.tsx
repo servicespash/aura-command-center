@@ -33,8 +33,6 @@ function Bar({ label, value, weight }: { label: string; value: number; weight: s
   );
 }
 
-const RISK_VALUE = { low: 15, medium: 55, high: 95 } as const;
-
 export function NodeDetailModal({ node, onClose }: { node: GeoNode | null; onClose: () => void }) {
   if (!node) return null;
   const score = threatScore(node);
@@ -48,7 +46,8 @@ export function NodeDetailModal({ node, onClose }: { node: GeoNode | null; onClo
             {node.label}
           </DialogTitle>
           <DialogDescription className="text-[11px]">
-            {node.lat.toFixed(4)}, {node.lon.toFixed(4)} · {node.asn} · {node.country}
+            {node.lat.toFixed(4)}, {node.lon.toFixed(4)} · {node.asn} ({node.asnOrg}) ·{" "}
+            {node.country}
           </DialogDescription>
         </DialogHeader>
 
@@ -60,9 +59,10 @@ export function NodeDetailModal({ node, onClose }: { node: GeoNode | null; onClo
         </div>
 
         <div className="space-y-3">
-          <Bar label="Connection frequency" weight="40%" value={frequencyScore(node.connections)} />
-          <Bar label="Geolocation risk" weight="35%" value={RISK_VALUE[node.geoRisk]} />
-          <Bar label="Subdomain target risk" weight="25%" value={RISK_VALUE[node.subdomainRisk]} />
+          <Bar label="Connection frequency" weight="30%" value={frequencyScore(node.connections)} />
+          <Bar label="Country risk index" weight="20%" value={node.countryRiskIndex} />
+          <Bar label="ASN reputation index" weight="25%" value={node.asnRiskIndex} />
+          <Bar label="Subdomain sensitivity" weight="25%" value={node.sensitivityIndex} />
         </div>
 
         <dl className="grid grid-cols-2 gap-3 text-[11px]">
