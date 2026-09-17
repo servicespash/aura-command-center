@@ -8,7 +8,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { TermuxToolbar } from "../components/layout/TermuxToolbar";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -78,11 +77,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "AURA-NET Command System" },
+      { name: "description", content: "AURA-NET global threat intelligence command system." },
+      { name: "author", content: "AURA-NET" },
+      { property: "og:title", content: "AURA-NET Command System" },
+      { property: "og:description", content: "Global threat intelligence and perimeter telemetry command system." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
@@ -114,7 +113,7 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="overflow-hidden">
         {children}
         <Scripts />
       </body>
@@ -127,12 +126,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="w-full h-screen overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto relative z-10">
+      <div className="flex h-dvh w-screen flex-col overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <Outlet />
-        </div>
-        <div className="sm:hidden fixed bottom-0 left-0 w-full z-50">
-          <TermuxToolbar onTap={(key) => console.log(key)} />
         </div>
       </div>
     </QueryClientProvider>

@@ -102,7 +102,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
         });
       }
     },
-    { target: ref, filterTaps: true, eventOptions: { pointer: true } },
+    { target: ref, filterTaps: true },
   );
 
   useEffect(() => {
@@ -227,7 +227,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
 
         // Draw each feature
         for (const feature of worldAtlas.current.features) {
-          const name = feature.properties?.name;
+          const name = feature.properties?.['name'];
           let fill = colors.land;
 
           if (name && countryScores[name]) {

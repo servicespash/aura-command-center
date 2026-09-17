@@ -18,13 +18,13 @@ export function OnboardDomainModal({
 }) {
   const [step, setStep] = useState(1);
   const [domain, setDomain] = useState("");
-  const [method, setMethod] = useState<string>(AUTH_PROVIDERS[0]);
+  const [method, setMethod] = useState<string>(AUTH_PROVIDERS[0] ?? "Google OAuth");
   const [key, setKey] = useState("");
 
   const reset = () => {
     setStep(1);
     setDomain("");
-    setMethod(AUTH_PROVIDERS[0]);
+    setMethod(AUTH_PROVIDERS[0] ?? "Google OAuth");
   };
 
   const handleVerify = () => {

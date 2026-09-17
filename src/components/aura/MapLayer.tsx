@@ -16,12 +16,11 @@ export function MapLayer() {
 
   return (
     <div 
-      className="absolute inset-0 z-0 pointer-events-auto overflow-hidden" 
-      style={{ isolation: 'isolate', backgroundColor: 'var(--color-background)' }}
+      className="absolute inset-0 z-0 isolate touch-none overflow-hidden bg-background pointer-events-auto" 
     >
       {/* Globe Layer */}
       <div 
-        className="w-full h-full bg-slate-950 pointer-events-auto"
+        className="h-full w-full bg-background pointer-events-auto"
         style={{ display: mapViewMode === 'globe' ? 'block' : 'none' }}
       >
         <Suspense fallback={null}>

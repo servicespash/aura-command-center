@@ -1,57 +1,120 @@
-import { useEffect, useState, useMemo } from "react";
-import {
-  EGRESS_NODES,
-} from "./data";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, Building2, ChevronRight, Crosshair, Minus, Plus, RotateCcw, TerminalSquare } from "lucide-react";
+import { EGRESS_NODES, type Tenant } from "./data";
 import { OnboardDomainModal } from "./OnboardDomainModal";
-import { ToggleSwitch } from "./ToggleSwitch";
 import { ScanlineOverlay } from "./ScanlineOverlay";
-import { FloatingHUD } from "./FloatingHUD";
 import { SystemDiagnosticsDrawer } from "./SystemDiagnosticsDrawer";
-import { AtmosphereLayer } from "./AtmosphereLayer";
-import { GlobalCrtOverlay } from "./GlobalCrtOverlay";
-import { TacticalZoomController } from "./TacticalZoomController";
 import { TerminalCommandPrompt } from "./TerminalCommandPrompt";
 import { MapLayer } from "./MapLayer";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { Button } from "../ui/button";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { TelemetryEngine } from "@/lib/TelemetryEngine";
-import { StreamHUD } from "@/components/layout/StreamHUD";
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+type MobilePanel = "threats" | "tenants" | "terminal";
+
+function Metric({ label, value, alert = false }: { label: string; value: string; alert?: boolean }) {
   return (
-    <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-500/20 rounded-lg px-4 py-3">
-      <p className="label-hud">{label}</p>
-      <p className={`mt-1.5 font-display text-xl font-bold ${tone ?? "text-foreground"}`}>
+    <div className="min-w-0 border-l border-border pl-3">
+      <p className="label-hud truncate">{label}</p>
+      <p className={`mt-1 font-display text-sm font-bold ${alert ? "text-destructive" : "text-foreground"}`}>
         {value}
       </p>
     </div>
   );
 }
 
+function ThreatPanel() {
+  const events = useTelemetryStore((state) => state.events);
+  const activeNodes = useTelemetryStore((state) => state.activeNodes);
+  const egressIndex = useTelemetryStore((state) => state.egressIndex);
+  const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
+  const egress = EGRESS_NODES[egressIndex] ?? EGRESS_NODES[0];
+  const parsedEvents = useMemo(() => events.map((event) => ({ ...event, at: new Date(event.at) })), [events]);
+  const critical = events.filter((event) => event.severity === "critical").length;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid shrink-0 grid-cols-2 border-b border-border p-3">
+        <Metric label="Active nodes" value={String(activeNodes)} />
+        <Metric label="Critical" value={String(critical)} alert={critical > 0} />
+      </div>
+      <section className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Live threat ingestion">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="label-hud">Live threat ingestion</p>
+          <span className="flex items-center gap-1 text-[9px] text-success"><Activity className="size-3" /> LIVE</span>
+        </div>
+        <ul className="space-y-2">
+          {parsedEvents.slice(0, 40).map((event) => (
+            <li key={event.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2 border-b border-border/60 py-2 text-[10px]">
+              <span className={`mt-1 size-1.5 shrink-0 rounded-full ${event.severity === "critical" ? "bg-destructive" : event.severity === "elevated" ? "bg-warning" : "bg-success"}`} />
+              <div className="min-w-0">
+                <p className="truncate text-foreground">{event.kind}</p>
+                <p className="truncate text-muted-foreground">{event.ip} → {event.subdomain}</p>
+              </div>
+              <span className="tabular-nums text-muted-foreground">{event.score}</span>
+            </li>
+          ))}
+          {parsedEvents.length === 0 && <li className="py-8 text-center text-xs text-muted-foreground">Awaiting telemetry…</li>}
+        </ul>
+      </section>
+      {egress && (
+        <section className="shrink-0 border-t border-border p-3" aria-label="Ghost egress">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="label-hud">Ghost egress</p>
+            <Button variant="ghost" size="icon" className="size-7" onClick={() => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length)} aria-label="Cycle egress node" title="Cycle egress node">
+              <ChevronRight className="size-3" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[10px]">
+            <div className="min-w-0"><p className="truncate text-primary">{egress.id} / {egress.city}</p><p className="truncate text-muted-foreground">{egress.decoy}</p></div>
+            <div className="text-right"><p>{egress.latency}ms</p><p className={egress.masked ? "text-success" : "text-warning"}>{egress.masked ? "MASKED" : "EXPOSED"}</p></div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function TenantsPanel() {
+  const tenants = useTelemetryStore((state) => state.tenants);
+  const addTenant = useTelemetryStore((state) => state.addTenant);
+  const handleAdd = (domain: string, method: string, key: string) => {
+    const tenant: Tenant = { domain, method, key, status: "verified", events24h: 0 };
+    addTenant(tenant);
+  };
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col p-3" aria-label="Tenant domains">
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+        <p className="label-hud">Tenant domains</p>
+        <OnboardDomainModal onAdd={handleAdd} />
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+        {tenants.map((tenant) => (
+          <div key={tenant.domain} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-border/60 py-3 text-[10px]">
+            <div className="min-w-0"><p className="truncate text-foreground">{tenant.domain}</p><p className="truncate text-muted-foreground">{tenant.method}</p></div>
+            <span className={tenant.status === "verified" ? "text-success" : "text-warning"}>{tenant.status.toUpperCase()}</span>
+          </div>
+        ))}
+        {tenants.length === 0 && <p className="py-8 text-center text-xs text-muted-foreground">No tenant domains onboarded.</p>}
+      </div>
+    </section>
+  );
+}
+
 export function CommandDeck({ onLock }: { onLock: () => void }) {
-  const {
-    events,
-    tenants,
-    activeNodes,
-    egressIndex,
-    setEgressIndex,
-    addTenant,
-    mapZoom,
-    setMapZoom,
-    mapViewMode,
-    setMapViewMode,
-  } = useTelemetryStore();
-  
-  const [isClient, setIsClient] = useState(false);
-  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const activeNodes = useTelemetryStore((state) => state.activeNodes);
+  const events = useTelemetryStore((state) => state.events);
+  const mapZoom = useTelemetryStore((state) => state.mapZoom);
+  const setMapZoom = useTelemetryStore((state) => state.setMapZoom);
+  const mapViewMode = useTelemetryStore((state) => state.mapViewMode);
+  const setMapViewMode = useTelemetryStore((state) => state.setMapViewMode);
+  const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("threats");
+  const [desktopPanel, setDesktopPanel] = useState<Exclude<MobilePanel, "terminal">>("threats");
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const parsedEvents = useMemo(() => events.map((e) => ({ ...e, at: new Date(e.at) })), [events]);
+  const critical = events.filter((event) => event.severity === "critical").length;
 
   useEffect(() => {
     const engine = TelemetryEngine.getInstance();
@@ -59,89 +122,57 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     return () => engine.stop();
   }, []);
 
-  useKeyboardShortcut("d", () => setEgressIndex((i) => (i + 1) % EGRESS_NODES.length));
-
-  const critical = events.filter((e) => e.severity === "critical").length;
-  const egress = EGRESS_NODES[egressIndex] || EGRESS_NODES[0];
+  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length));
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-slate-950">
-        <GlobalCrtOverlay className="pointer-events-none" />
-        <AtmosphereLayer className="pointer-events-none" />
-        <ScanlineOverlay className="pointer-events-none" />
-
-        {/* Header Bar */}
-        <header className="h-16 flex items-center justify-between px-4 bg-slate-900/60 backdrop-blur-md border-b border-cyan-500/20">
-            <div>
-              <p className="label-hud">AURA-NET Command Center</p>
-              <h1 className="text-glow mt-1 text-lg font-bold text-primary">AURA-NET</h1>
-            </div>
-            <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => setIsDiagnosticsOpen(true)}
-            >
-                DIAGNOSTICS
-            </Button>
-        </header>
-
-        {/* Main Workspace */}
-        <div className="flex-1 flex overflow-hidden">
-             {/* Primary Viewport */}
-             <div id="map-viewport" className="flex-1 relative overflow-hidden bg-slate-950">
-                <div className="absolute inset-0 z-0">
-                  <MapLayer />
-                </div>
-                
-                {/* Map Controls - Absolute to Viewport */}
-                <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-slate-900/60 backdrop-blur-md border border-cyan-500/20 p-2 rounded-lg pointer-events-auto">
-                    <ToggleSwitch
-                        labelLeft="Globe"
-                        labelRight="Map"
-                        onChange={(v) => setMapViewMode(v === "left" ? "globe" : "map")}
-                    />
-                    <TacticalZoomController
-                        onZoomIn={() => setMapZoom((z) => Math.min(z + 0.2, 3))}
-                        onZoomOut={() => setMapZoom((z) => Math.max(z - 0.2, 0.5))}
-                        onReset={() => setMapZoom(1)}
-                        onToggleMode={() => setMapViewMode((m) => (m === "globe" ? "map" : "globe"))}
-                        mode={mapViewMode}
-                    />
-                </div>
-             </div>
-
-             {/* Side Data Panel */}
-             <aside className="w-96 flex flex-col overflow-y-auto bg-slate-900/40 backdrop-blur-sm border-l border-white/10">
-                <section className="p-4 grid grid-cols-2 gap-2">
-                    <Stat label="Nodes" value={String(activeNodes)} />
-                    <Stat label="Events" value={String(critical * 7 + 3)} />
-                </section>
-                <div className="p-4 border-t border-white/5">
-                    <p className="label-hud mb-2">LIVE THREATS</p>
-                    <ul className="space-y-2">
-                        {parsedEvents.slice(0, 10).map((e) => (
-                          <li key={e.id} className="border border-white/5 p-2 rounded text-[10px]">
-                              {e.ip} - {e.kind}
-                          </li>
-                        ))}
-                    </ul>
-                </div>
-                <div className="p-4 border-t border-white/5">
-                    <p className="label-hud mb-2">TENANTS</p>
-                    <OnboardDomainModal onAdd={addTenant} />
-                </div>
-             </aside>
+    <main className="relative flex h-dvh w-screen flex-col overflow-hidden bg-background text-foreground">
+      <ScanlineOverlay />
+      <header className="z-20 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md md:h-16 md:px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <Crosshair className="size-5 shrink-0 text-primary" />
+          <div className="min-w-0"><h1 className="truncate text-sm font-bold text-primary md:text-lg">AURA-NET</h1><p className="label-hud hidden truncate sm:block">OSIRIS command viewport</p></div>
+          <div className="hidden items-center gap-5 lg:flex"><Metric label="Nodes" value={String(activeNodes)} /><Metric label="Critical" value={String(critical)} alert={critical > 0} /></div>
         </div>
+        <nav className="flex shrink-0 items-center gap-1" aria-label="System controls">
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => setIsDiagnosticsOpen(true)}>Diagnostics</Button>
+          <Button variant={mapViewMode === "globe" ? "default" : "ghost"} size="sm" onClick={() => setMapViewMode("globe")}>Globe</Button>
+          <Button variant={mapViewMode === "map" ? "default" : "ghost"} size="sm" onClick={() => setMapViewMode("map")}>Map</Button>
+          <Button variant="ghost" size="sm" className="hidden lg:inline-flex" onClick={onLock}>Lock</Button>
+        </nav>
+      </header>
 
-        {/* Docked Terminal */}
-        <div className="h-64 border-t border-white/10 bg-slate-900/80 backdrop-blur-md">
-            <TerminalCommandPrompt />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        <section id="map-viewport" className="relative min-h-0 flex-1 isolate overflow-hidden touch-none bg-background" aria-label="Interactive global threat map">
+          <MapLayer />
+          <div className="pointer-events-auto absolute right-3 top-3 z-10 flex items-center gap-1 border border-border bg-card/90 p-1 backdrop-blur-md md:right-4 md:top-4">
+            <span className="hidden border-r border-border px-2 text-[9px] uppercase text-muted-foreground sm:inline">{mapViewMode} projection</span>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => setMapZoom(Math.min(mapZoom + 0.2, 3))} aria-label="Zoom in" title="Zoom in"><Plus /></Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => setMapZoom(Math.max(mapZoom - 0.2, 0.5))} aria-label="Zoom out" title="Zoom out"><Minus /></Button>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => setMapZoom(1)} aria-label="Reset zoom" title="Reset zoom"><RotateCcw /></Button>
+          </div>
+        </section>
+
+        <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
+          <div className="grid h-10 shrink-0 grid-cols-2 border-b border-border p-1">
+            <Button variant={desktopPanel === "threats" ? "secondary" : "ghost"} size="sm" onClick={() => setDesktopPanel("threats")}><Activity /> Threats</Button>
+            <Button variant={desktopPanel === "tenants" ? "secondary" : "ghost"} size="sm" onClick={() => setDesktopPanel("tenants")}><Building2 /> Tenants</Button>
+          </div>
+          {desktopPanel === "threats" ? <ThreatPanel /> : <TenantsPanel />}
+        </aside>
+      </div>
+
+      <div className="hidden h-56 shrink-0 overflow-hidden border-t border-border bg-card/95 md:block"><TerminalCommandPrompt /></div>
+
+      <section className="flex h-[42%] min-h-56 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 md:hidden">
+        <div className="grid h-11 shrink-0 grid-cols-3 border-b border-border p-1">
+          <Button variant={mobilePanel === "threats" ? "secondary" : "ghost"} size="sm" onClick={() => setMobilePanel("threats")}><Activity /> Threats</Button>
+          <Button variant={mobilePanel === "tenants" ? "secondary" : "ghost"} size="sm" onClick={() => setMobilePanel("tenants")}><Building2 /> Tenants</Button>
+          <Button variant={mobilePanel === "terminal" ? "secondary" : "ghost"} size="sm" onClick={() => setMobilePanel("terminal")}><TerminalSquare /> Terminal</Button>
         </div>
-        
-        <SystemDiagnosticsDrawer isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
-        <FloatingHUD className="pointer-events-none" />
-        <StreamHUD className="pointer-events-none" />
-    </div>
+        <div className="min-h-0 flex-1 overflow-hidden">{mobilePanel === "threats" ? <ThreatPanel /> : mobilePanel === "tenants" ? <TenantsPanel /> : <TerminalCommandPrompt />}</div>
+      </section>
+
+      <SystemDiagnosticsDrawer isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
+    </main>
   );
 }

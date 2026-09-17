@@ -9,11 +9,10 @@ export const WorkerAPI = {
   computeCountryScores(nodes: GeoNode[]): Record<string, { total: number; count: number }> {
     const scores: Record<string, { total: number; count: number }> = {};
     for (const n of nodes) {
-      if (!scores[n.country]) {
-        scores[n.country] = { total: 0, count: 0 };
-      }
-      scores[n.country].total += threatScore(n);
-      scores[n.country].count += 1;
+      const score = scores[n.country] ?? { total: 0, count: 0 };
+      score.total += threatScore(n);
+      score.count += 1;
+      scores[n.country] = score;
     }
     return scores;
   },
