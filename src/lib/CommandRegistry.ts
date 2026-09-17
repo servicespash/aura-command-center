@@ -1,7 +1,10 @@
-import { ParsedCommand } from "./CommandParser";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { SEED_NODES } from "@/components/aura/data";
+import { EGRESS_NODES } from "@/components/aura/data";
 import { StorageService } from "./StorageService";
+import { MMDBReader } from "@/services/spatial/mmdbReader";
+import { globalEvents, EVENTS } from "@/lib/events";
+import { PanicService } from "@/services/security/panicService";
+import { globalP2PMesh } from "@/engine/network/p2p";
 
 export interface CommandDefinition {
   name: string;
@@ -46,10 +49,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     execute: async (args, setResponse) => {
       const ip = (args['ip'] as string) || "unknown";
       
-      const { MMDBReader } = await import("@/services/spatial/mmdbReader");
       const result = await MMDBReader.resolve(ip);
-      
-      const { globalEvents, EVENTS } = await import("@/lib/events");
       // Optional: hide terminal when executing a find
       globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
       
@@ -84,7 +84,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Cycles active outbound proxies or displays status.",
     execute: (args, setResponse) => {
       if (args['cycle']) {
-        useTelemetryStore.getState().setEgressIndex((i) => (i + 1) % 4);
+        useTelemetryStore.getState().setEgressIndex((i) => (i + 1) % EGRESS_NODES.length);
         const index = useTelemetryStore.getState().egressIndex;
         setResponse(
           `[EGRESS] Shifted active proxy to GH-0${index + 1} (Latency: ${Math.floor(Math.random() * 30 + 10)}ms)`,
@@ -136,8 +136,8 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
         .events.filter(
           (e) =>
             (level === "high" && e.severity === "critical") ||
-            (level === "med" && e.severity === "warning") ||
-            (level === "low" && e.severity === "info"),
+             (level === "med" && e.severity === "elevated") ||
+             (level === "low" && e.severity === "clear"),
         );
       setResponse(
         `[FEED] Filter applied: ${level.toUpperCase()} severity (${events.length} events active)`,
@@ -183,7 +183,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       const query = (args['query'] as string) || "";
       const archived = await StorageService.getArchivedEvents();
       const matches = archived.filter(
-        (e) => e.sourceIp.includes(query) || e.domain.includes(query) || e.targetId.includes(query),
+        (e) => e.ip.includes(query) || e.subdomain.includes(query) || e.nodeId.includes(query),
       );
       setResponse(`[SEARCH] Found ${matches.length} matching entries for query '${query}'.`);
     },
@@ -262,7 +262,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Fail-safe: Instant purge of all local storage and RAM state.",
     execute: async (args, setResponse) => {
       if (args['purge'] && args['confirm']) {
-        await import("@/services/security/panicService").then((m) => m.PanicService.execute());
+        await PanicService.execute();
         setResponse(`[PANIC] Emergency purge successful.`);
       } else {
         setResponse(`[ERROR] Missing flags: --purge --confirm`);
@@ -277,7 +277,6 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       const target = (args['pos_1'] as string) || "broadcast";
       const message = (args['pos_2'] as string) || "PING";
       
-      const { globalP2PMesh } = await import("@/engine/network/p2p");
       await globalP2PMesh.sendMessage(target, message);
       
       setResponse(`[P2P] Encrypted payload dispatched to ${target}`);

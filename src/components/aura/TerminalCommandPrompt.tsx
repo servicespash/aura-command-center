@@ -5,6 +5,7 @@ import { COMMAND_REGISTRY } from "@/lib/CommandRegistry";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { StorageService } from "@/lib/StorageService";
 import { AudioEngine } from "@/lib/AudioEngine";
+import { Button } from "@/components/ui/button";
 
 export function TerminalCommandPrompt() {
   const [input, setInput] = useState("");
@@ -150,14 +151,16 @@ export function TerminalCommandPrompt() {
       const nextIndex = historyIndex + 1;
       if (nextIndex < history.length) {
         setHistoryIndex(nextIndex);
-        setInput(history[history.length - 1 - nextIndex].cmd);
+        const entry = history[history.length - 1 - nextIndex];
+        if (entry) setInput(entry.cmd);
       }
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       if (historyIndex > 0) {
         const prevIndex = historyIndex - 1;
         setHistoryIndex(prevIndex);
-        setInput(history[history.length - 1 - prevIndex].cmd);
+        const entry = history[history.length - 1 - prevIndex];
+        if (entry) setInput(entry.cmd);
       } else if (historyIndex === 0) {
         setHistoryIndex(-1);
         setInput("");
@@ -189,30 +192,36 @@ export function TerminalCommandPrompt() {
   };
 
   return (
-    <div className="panel p-4 rounded-lg font-mono text-xs w-full h-[300px] flex flex-col relative border-0 bg-transparent">
+    <div className="flex h-full w-full min-h-0 flex-col overflow-hidden bg-transparent p-3 font-mono text-xs md:p-4">
       <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
         <span className="text-primary/70 font-semibold flex items-center gap-2">
           <History className="w-3 h-3" />
           TERMINAL HISTORY
         </span>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => {
               setArchive((a) => [...a, ...history]);
               setHistory([]);
             }}
-            className="hover:text-primary text-muted-foreground transition-colors"
+            className="size-7 text-muted-foreground hover:text-primary"
             title="Archive All"
           >
             <Archive className="w-3 h-3" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setHistory([])}
-            className="hover:text-destructive text-muted-foreground transition-colors"
+            className="size-7 text-muted-foreground hover:text-destructive"
             title="Clear History"
           >
             <Trash2 className="w-3 h-3" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -222,18 +231,26 @@ export function TerminalCommandPrompt() {
             <div className="text-primary">{`> ${h.cmd}`}</div>
             <div className="text-muted-foreground whitespace-pre-wrap">{h.resp}</div>
             <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 flex flex-col gap-1 transition-opacity">
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => archiveEntry(h.id)}
-                className="text-muted-foreground hover:text-primary"
+                className="size-6 text-muted-foreground hover:text-primary"
+                aria-label="Archive entry"
               >
                 <Archive className="w-3 h-3" />
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 onClick={() => deleteEntry(h.id)}
-                className="text-muted-foreground hover:text-destructive"
+                className="size-6 text-muted-foreground hover:text-destructive"
+                aria-label="Delete entry"
               >
                 <Trash2 className="w-3 h-3" />
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -244,14 +261,16 @@ export function TerminalCommandPrompt() {
 
       <div className="flex sm:hidden overflow-x-auto gap-1 py-2 my-1 border-t border-b border-border/20 text-[10px] font-mono no-scrollbar">
         {["ESC", "TAB", "CTRL", "ALT", "/", "-", "|", "▲", "▼", "?"].map((key) => (
-          <button
+          <Button
             key={key}
             onClick={() => handleToolbarTap(key)}
             type="button"
-            className="px-2 py-1 bg-secondary/50 hover:bg-secondary rounded border border-border/50 shrink-0 text-muted-foreground"
+            variant="secondary"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground"
           >
             {key}
-          </button>
+          </Button>
         ))}
       </div>
 

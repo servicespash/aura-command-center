@@ -102,7 +102,11 @@ body.theme-stealth {
   }
 
   body {
-    background-color: transparent;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-mono);
     background-image:
@@ -111,6 +115,12 @@ body.theme-stealth {
     background-size: 96px 96px;
     background-position: calc(var(--grid-x, 0px) + var(--grid-breath, 0px))
       calc(var(--grid-y, 0px) + var(--grid-breath, 0px));
+  }
+
+  html,
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
 
   h1,
