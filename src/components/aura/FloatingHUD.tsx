@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function FloatingHUD() {
+export function FloatingHUD({ className = "" }: { className?: string }) {
   const [stats, setStats] = useState({ ram: 42, latency: 12 });
 
   useEffect(() => {
@@ -14,7 +14,7 @@ export function FloatingHUD() {
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 panel p-3 z-50 text-[10px] space-y-1">
+    <div className={`fixed bottom-4 left-4 panel p-3 z-50 text-[10px] space-y-1 ${className}`}>
       <div className="text-muted-foreground">SYS_RES_MON</div>
       <div className="flex gap-4">
         <span>RAM: {stats.ram}%</span>

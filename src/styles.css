@@ -75,13 +75,34 @@
   --gradient-scan: linear-gradient(90deg, transparent, oklch(0.82 0.16 195 / 45%), transparent);
 }
 
+/* Themes */
+body.theme-alert {
+  --primary: oklch(0.63 0.22 20);
+  --success: oklch(0.63 0.22 20);
+  --grid: oklch(0.63 0.22 20 / 12%);
+  --border: oklch(0.63 0.22 20 / 30%);
+  --input: oklch(0.63 0.22 20 / 22%);
+  --ring: oklch(0.63 0.22 20 / 55%);
+  --glow-primary: 0 0 0 1px oklch(0.63 0.22 20 / 35%), 0 0 24px oklch(0.63 0.22 20 / 18%);
+}
+
+body.theme-stealth {
+  --primary: oklch(0.8 0.15 80);
+  --success: oklch(0.8 0.15 80);
+  --grid: oklch(0.8 0.15 80 / 12%);
+  --border: oklch(0.8 0.15 80 / 22%);
+  --input: oklch(0.8 0.15 80 / 22%);
+  --ring: oklch(0.8 0.15 80 / 55%);
+  --glow-primary: 0 0 0 1px oklch(0.8 0.15 80 / 35%), 0 0 24px oklch(0.8 0.15 80 / 18%);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
   body {
-    background-color: var(--color-background);
+    background-color: transparent;
     color: var(--color-foreground);
     font-family: var(--font-mono);
     background-image:

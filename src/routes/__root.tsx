@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { TermuxToolbar } from "../components/layout/TermuxToolbar";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -126,8 +127,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="w-full h-screen overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-auto relative z-10">
+          <Outlet />
+        </div>
+        <div className="sm:hidden fixed bottom-0 left-0 w-full z-50">
+          <TermuxToolbar onTap={(key) => console.log(key)} />
+        </div>
+      </div>
     </QueryClientProvider>
   );
 }

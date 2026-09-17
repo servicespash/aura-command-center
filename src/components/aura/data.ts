@@ -1,9 +1,3 @@
-export type ConnectionRecord = {
-  at: Date;
-  ip: string;
-  subdomain: string;
-  action: string;
-};
 
 /**
  * Real-world security risk indices (0-100).
@@ -71,13 +65,9 @@ export type GeoNode = {
   country: string;
   asn: string;
   asnOrg: string;
-  /** Connections observed in the trailing 24h window — drives 40% of the score. */
   connections: number;
-  /** Calculated base country risk score (0-100). */
   countryRiskIndex: number;
-  /** Calculated base ASN risk score (0-100). */
   asnRiskIndex: number;
-  /** Sensitivity of the subdomain being probed (0-100). */
   sensitivityIndex: number;
   targetSubdomain: string;
   ip: string;
@@ -85,15 +75,17 @@ export type GeoNode = {
   history: ConnectionRecord[];
 };
 
-/** Frequency component: saturates at 4,000 connections / 24h. */
+export type ConnectionRecord = {
+  at: Date;
+  ip: string;
+  subdomain: string;
+  action: string;
+};
+
 export function frequencyScore(connections: number) {
   return Math.min(100, Math.round((connections / 4000) * 100));
 }
 
-/**
- * Weighted 0–100 threat score based on real risk indices.
- * Formula: (Frequency * 0.3) + (CountryRisk * 0.2) + (ASNRisk * 0.25) + (Sensitivity * 0.25)
- */
 export function threatScore(node: GeoNode) {
   const score =
     frequencyScore(node.connections) * 0.3 +
@@ -121,232 +113,20 @@ export function bandTextClass(band: ThreatBand) {
       : "text-success";
 }
 
-function randomIp() {
-  return `${10 + Math.floor(Math.random() * 220)}.${Math.floor(Math.random() * 255)}.${Math.floor(
-    Math.random() * 255,
-  )}.${Math.floor(Math.random() * 255)}`;
-}
-
-const ACTIONS = [
-  "GET /api/session",
-  "POST /auth/token",
-  "HEAD /.env probe",
-  "GET /admin",
-  "OPTIONS /graphql",
-  "POST /telemetry/ingest",
+export const AUTH_PROVIDERS = [
+  "Google OAuth",
+  "GitHub",
+  "Okta",
+  "Azure AD"
 ];
-
-function seedHistory(subdomain: string, count: number): ConnectionRecord[] {
-  return Array.from({ length: count }, (_, i) => ({
-    at: new Date(Date.now() - (i + 1) * (1000 * 60 * (7 + Math.floor(Math.random() * 40)))),
-    ip: randomIp(),
-    subdomain,
-    action: ACTIONS[Math.floor(Math.random() * ACTIONS.length)]!,
-  }));
-}
-
-type Seed = Omit<
-  GeoNode,
-  "history" | "ip" | "countryRiskIndex" | "asnRiskIndex" | "sensitivityIndex"
-> & { ip?: string };
-
-const SEEDS: Seed[] = [
-  {
-    id: "kla",
-    lat: 0.31,
-    lon: 32.58,
-    label: "Kampala UG",
-    country: "Uganda",
-    asn: "AS37075",
-    asnOrg: "Roke Telkom",
-    connections: 640,
-    targetSubdomain: "edge.pash.services",
-    email: "ops@pash.services",
-  },
-  {
-    id: "fra",
-    lat: 50.11,
-    lon: 8.68,
-    label: "Frankfurt DE",
-    country: "Germany",
-    asn: "AS24940",
-    asnOrg: "Hetzner",
-    connections: 2180,
-    targetSubdomain: "api.pash.services",
-    email: null,
-  },
-  {
-    id: "sin",
-    lat: 1.35,
-    lon: 103.82,
-    label: "Singapore SG",
-    country: "Singapore",
-    asn: "AS16509",
-    asnOrg: "Amazon",
-    connections: 910,
-    targetSubdomain: "cdn.pash.services",
-    email: null,
-  },
-  {
-    id: "iad",
-    lat: 38.95,
-    lon: -77.45,
-    label: "Ashburn US",
-    country: "United States",
-    asn: "AS14618",
-    asnOrg: "Amazon",
-    connections: 3720,
-    targetSubdomain: "vault.pash.services",
-    email: "svc-runner@client-atlas.io",
-  },
-  {
-    id: "sao",
-    lat: -23.55,
-    lon: -46.63,
-    label: "Sao Paulo BR",
-    country: "Brazil",
-    asn: "AS28573",
-    asnOrg: "Claro",
-    connections: 1490,
-    targetSubdomain: "pay.pash.services",
-    email: null,
-  },
-  {
-    id: "syd",
-    lat: -33.87,
-    lon: 151.21,
-    label: "Sydney AU",
-    country: "Australia",
-    asn: "AS4764",
-    asnOrg: "Aussie Broadband",
-    connections: 420,
-    targetSubdomain: "status.pash.services",
-    email: null,
-  },
-  {
-    id: "mow",
-    lat: 55.75,
-    lon: 37.62,
-    label: "Moscow RU",
-    country: "Russia",
-    asn: "AS49505",
-    asnOrg: "Selectel",
-    connections: 2860,
-    targetSubdomain: "admin.pash.services",
-    email: null,
-  },
-  {
-    id: "bom",
-    lat: 19.08,
-    lon: 72.88,
-    label: "Mumbai IN",
-    country: "India",
-    asn: "AS55836",
-    asnOrg: "Jio",
-    connections: 1740,
-    targetSubdomain: "docs.pash.services",
-    email: null,
-  },
-  {
-    id: "lhr",
-    lat: 51.51,
-    lon: -0.13,
-    label: "London UK",
-    country: "United Kingdom",
-    asn: "AS20712",
-    asnOrg: "Andrews & Arnold",
-    connections: 1120,
-    targetSubdomain: "app.pash.services",
-    email: "audit@northgate.co",
-  },
-  {
-    id: "nrt",
-    lat: 35.68,
-    lon: 139.69,
-    label: "Tokyo JP",
-    country: "Japan",
-    asn: "AS2516",
-    asnOrg: "KDDI",
-    connections: 780,
-    targetSubdomain: "cdn.pash.services",
-    email: null,
-  },
-  {
-    id: "lag",
-    lat: 6.52,
-    lon: 3.38,
-    label: "Lagos NG",
-    country: "Nigeria",
-    asn: "AS37282",
-    asnOrg: "MainOne",
-    connections: 2340,
-    targetSubdomain: "auth.pash.services",
-    email: null,
-  },
-  {
-    id: "ams",
-    lat: 52.37,
-    lon: 4.9,
-    label: "Amsterdam NL",
-    country: "Netherlands",
-    asn: "AS60781",
-    asnOrg: "LeaseWeb",
-    connections: 3010,
-    targetSubdomain: "vault.northgate.co",
-    email: null,
-  },
-];
-
-export const SEED_NODES: GeoNode[] = SEEDS.map((s) => {
-  const subdomainPrefix = s.targetSubdomain.split(".")[0] || "app";
-  return {
-    ...s,
-    ip: s.ip ?? randomIp(),
-    countryRiskIndex: COUNTRY_RISK[s.country] ?? 25,
-    asnRiskIndex: ASN_RISK[s.asnOrg] ?? 30,
-    sensitivityIndex: SUBDOMAIN_SENSITIVITY[subdomainPrefix] ?? 50,
-    history: seedHistory(s.targetSubdomain, 5),
-  };
-});
 
 export type Tenant = {
   domain: string;
   status: "verified" | "pending" | "failed";
-  method: "Google OAuth" | "DNS TXT";
+  method: string; // Dynamic provider
   key: string;
   events24h: number;
 };
-
-export const SEED_TENANTS: Tenant[] = [
-  {
-    domain: "pash.services",
-    status: "verified",
-    method: "Google OAuth",
-    key: "tk_live_9f13a02",
-    events24h: 184_302,
-  },
-  {
-    domain: "edge.pash.services",
-    status: "verified",
-    method: "DNS TXT",
-    key: "tk_live_4c88b71",
-    events24h: 92_118,
-  },
-  {
-    domain: "client-atlas.io",
-    status: "pending",
-    method: "DNS TXT",
-    key: "tk_pend_000000",
-    events24h: 0,
-  },
-  {
-    domain: "vault.northgate.co",
-    status: "failed",
-    method: "DNS TXT",
-    key: "tk_none",
-    events24h: 0,
-  },
-];
 
 export type EgressNode = {
   id: string;
@@ -429,25 +209,11 @@ export type ThreatEvent = {
   subdomain: string;
   severity: ThreatBand;
   score: number;
+  lat?: number;
+  lon?: number;
+  destLat?: number;
+  destLon?: number;
 };
-
-/** Structured telemetry event derived from a node's live threat score. */
-export function randomEvent(nodes: GeoNode[]): ThreatEvent {
-  const node = nodes[Math.floor(Math.random() * nodes.length)]!;
-  const base = threatScore(node);
-  const score = Math.max(0, Math.min(100, base + Math.floor(Math.random() * 24) - 12));
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    at: new Date(),
-    nodeId: node.id,
-    origin: node.label,
-    ip: randomIp(),
-    kind: ACTORS[Math.floor(Math.random() * ACTORS.length)]!,
-    subdomain: node.targetSubdomain,
-    severity: threatBand(score),
-    score,
-  };
-}
 
 export function eventToRecord(e: ThreatEvent): ConnectionRecord {
   return { at: e.at, ip: e.ip, subdomain: e.subdomain, action: e.kind };

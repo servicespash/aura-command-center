@@ -5,12 +5,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { generateTelemetryKey, generateTxtToken } from "./data";
+import { generateTelemetryKey, generateTxtToken, AUTH_PROVIDERS } from "./data";
 
 export function OnboardDomainModal({
   onAdd,
@@ -19,13 +18,13 @@ export function OnboardDomainModal({
 }) {
   const [step, setStep] = useState(1);
   const [domain, setDomain] = useState("");
-  const [method, setMethod] = useState<"Google OAuth" | "DNS TXT">("Google OAuth");
+  const [method, setMethod] = useState<string>(AUTH_PROVIDERS[0]);
   const [key, setKey] = useState("");
 
   const reset = () => {
     setStep(1);
     setDomain("");
-    setMethod("Google OAuth");
+    setMethod(AUTH_PROVIDERS[0]);
   };
 
   const handleVerify = () => {
@@ -62,19 +61,16 @@ export function OnboardDomainModal({
           {step === 2 && (
             <div className="space-y-4">
               <Label>Verification Method</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={method === "Google OAuth" ? "default" : "outline"}
-                  onClick={() => setMethod("Google OAuth")}
-                >
-                  Google OAuth
-                </Button>
-                <Button
-                  variant={method === "DNS TXT" ? "default" : "outline"}
-                  onClick={() => setMethod("DNS TXT")}
-                >
-                  DNS TXT
-                </Button>
+              <div className="flex flex-col gap-2">
+                {AUTH_PROVIDERS.map((provider) => (
+                    <Button
+                    key={provider}
+                    variant={method === provider ? "default" : "outline"}
+                    onClick={() => setMethod(provider)}
+                    >
+                    {provider}
+                    </Button>
+                ))}
               </div>
               <Button onClick={() => setStep(3)}>Continue</Button>
             </div>
@@ -84,7 +80,7 @@ export function OnboardDomainModal({
               <p className="text-sm text-muted-foreground">
                 {method === "DNS TXT"
                   ? `Add this record to your DNS: ${generateTxtToken()}`
-                  : "Redirecting to Google OAuth..."}
+                  : `Redirecting to ${method}...`}
               </p>
               <Button onClick={handleVerify}>Verify</Button>
             </div>

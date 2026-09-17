@@ -1,76 +1,149 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { History, Archive, Trash2 } from "lucide-react";
+import { parseCommand } from "@/lib/CommandParser";
+import { COMMAND_REGISTRY } from "@/lib/CommandRegistry";
+import { useTelemetryStore } from "@/store/telemetryStore";
+import { StorageService } from "@/lib/StorageService";
+import { AudioEngine } from "@/lib/AudioEngine";
 
 export function TerminalCommandPrompt() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<{ cmd: string; resp: string; id: number }[]>([]);
-  const [archive, setArchive] = useState<{ cmd: string; resp: string; id: number }[]>([]);
+  const [history, setHistory] = useState<{ cmd: string; resp: React.ReactNode; id: number }[]>([]);
+  const [archive, setArchive] = useState<{ cmd: string; resp: React.ReactNode; id: number }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { installedPackages, installPackage } = useTelemetryStore();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Load from local storage on mount
+  // Load from IDB on mount
   useEffect(() => {
-    const saved = localStorage.getItem("terminal_history");
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    const savedArchive = localStorage.getItem("terminal_archive");
-    if (savedArchive) {
-      try {
-        setArchive(JSON.parse(savedArchive));
-      } catch (e) {
-        console.error(e);
-      }
-    }
+    StorageService.zustandGet("terminal_history").then((saved) => {
+      if (saved && Array.isArray(saved)) setHistory(saved);
+    });
+    StorageService.zustandGet("terminal_archive").then((savedArchive) => {
+      if (savedArchive && Array.isArray(savedArchive)) setArchive(savedArchive);
+    });
   }, []);
 
-  // Save to local storage on change
+  // Save to IDB on change
   useEffect(() => {
-    localStorage.setItem("terminal_history", JSON.stringify(history));
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (history.length > 0) {
+      // Only save entries that are purely strings to avoid serialization errors
+      const serializableHistory = history.filter((h) => typeof h.resp === "string");
+      StorageService.zustandSet("terminal_history", serializableHistory).catch(console.error);
+    }
   }, [history]);
 
   useEffect(() => {
-    localStorage.setItem("terminal_archive", JSON.stringify(archive));
+    if (archive.length > 0) {
+      // Only save entries that are purely strings to avoid serialization errors
+      const serializableArchive = archive.filter((h) => typeof h.resp === "string");
+      StorageService.zustandSet("terminal_archive", serializableArchive).catch(console.error);
+    }
   }, [archive]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [history, isProcessing]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isProcessing) return;
 
-    let response = `Command '${input}' recognized. Executing...`;
+    const currentInput = input.trim();
+    setInput("");
+    setHistoryIndex(-1);
 
-    if (input === "help") response = "Available commands: status, scan, report, clear, archive";
-    if (input === "status") response = "System: AURA-NET ONLINE. Threat level: NOMINAL.";
-    if (input === "clear") {
+    if (currentInput.toLowerCase() === "clear") {
       setHistory([]);
-      setInput("");
-      setHistoryIndex(-1);
       return;
     }
-    if (input === "archive") {
-      if (history.length === 0) {
-        response = "No history to archive.";
+
+    // Add command to history early with loading state
+    const entryId = Date.now();
+    setHistory((h) => [...h, { cmd: currentInput, resp: "Executing...", id: entryId }]);
+
+    const parsed = parseCommand(currentInput);
+    const cmdDef = COMMAND_REGISTRY[parsed.command];
+
+    let responseNode: React.ReactNode = "";
+
+    if (!cmdDef) {
+      responseNode = `[ERROR] Command '${parsed.command}' not recognized. Type 'help' for a list of commands.`;
+    } else {
+      // Intercept missing packages
+      if (cmdDef.requiredPkg !== "built-in" && !installedPackages.includes(cmdDef.requiredPkg)) {
+        responseNode = (
+          <div className="flex flex-col gap-1 text-destructive">
+            <div>
+              [ERROR] Command failed to execute: Missing security package '{cmdDef.requiredPkg}'.
+            </div>
+            <div className="text-muted-foreground">
+              [HINT] Run 'pkg install {cmdDef.requiredPkg}' to install missing dependencies.
+            </div>
+          </div>
+        );
       } else {
-        setArchive((a) => [...a, ...history]);
-        setHistory([]);
-        response = `${history.length} entries moved to permanent archive.`;
-        // To show the archive response we still add this to history, or just display temporarily.
-        // Let's keep it in the new history.
+        // Special case for pkg install
+        if (
+          parsed.command === "pkg" &&
+          parsed.args["pos_1"] === "install" &&
+          parsed.args["pos_2"]
+        ) {
+          const pkgName = parsed.args["pos_2"] as string;
+          setIsProcessing(true);
+
+          // Animate progress bar
+          setHistory((h) =>
+            h.map((item) =>
+              item.id === entryId
+                ? {
+                    ...item,
+                    resp: (
+                      <InstallProgress
+                        pkg={pkgName}
+                        onComplete={() => {
+                          installPackage(pkgName);
+                          setIsProcessing(false);
+                        }}
+                      />
+                    ),
+                  }
+                : item,
+            ),
+          );
+          return;
+        }
+
+        // Execute regular command
+        let rawResponse = "";
+        const setResp = (msg: string) => {
+          rawResponse = msg;
+        };
+
+        try {
+          await cmdDef.execute(parsed.args, setResp);
+          responseNode = rawResponse;
+        } catch (err: unknown) {
+          responseNode = `[ERROR] Execution failed: ${err instanceof Error ? err.message : String(err)}`;
+        }
       }
     }
 
-    setHistory((h) => [...h, { cmd: input, resp: response, id: Date.now() }]);
-    setInput("");
-    setHistoryIndex(-1);
+    setHistory((h) =>
+      h.map((item) => (item.id === entryId ? { ...item, resp: responseNode } : item)),
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const { audioEnabled } = useTelemetryStore.getState();
+    if (audioEnabled && e.key.length === 1) {
+      // Only play on printable chars
+      AudioEngine.getInstance().playKeystroke();
+    }
+
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length === 0) return;
@@ -92,9 +165,20 @@ export function TerminalCommandPrompt() {
     }
   };
 
-  const deleteEntry = (id: number) => {
-    setHistory((h) => h.filter((item) => item.id !== id));
+  const handleToolbarTap = (key: string) => {
+    if (key === "?") {
+      setInput("help");
+      // Simulate form submission
+      setTimeout(() => {
+        const form = document.getElementById("terminal-form") as HTMLFormElement;
+        form?.requestSubmit();
+      }, 50);
+    } else {
+      setInput((prev) => prev + key);
+    }
   };
+
+  const deleteEntry = (id: number) => setHistory((h) => h.filter((item) => item.id !== id));
 
   const archiveEntry = (id: number) => {
     const item = history.find((h) => h.id === id);
@@ -136,19 +220,17 @@ export function TerminalCommandPrompt() {
         {history.map((h) => (
           <div key={h.id} className="group relative pr-6">
             <div className="text-primary">{`> ${h.cmd}`}</div>
-            <TypewriterText text={h.resp} />
+            <div className="text-muted-foreground whitespace-pre-wrap">{h.resp}</div>
             <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 flex flex-col gap-1 transition-opacity">
               <button
                 onClick={() => archiveEntry(h.id)}
                 className="text-muted-foreground hover:text-primary"
-                title="Archive"
               >
                 <Archive className="w-3 h-3" />
               </button>
               <button
                 onClick={() => deleteEntry(h.id)}
                 className="text-muted-foreground hover:text-destructive"
-                title="Delete"
               >
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -159,14 +241,29 @@ export function TerminalCommandPrompt() {
           <div className="text-muted-foreground/50 italic">No command history...</div>
         )}
       </div>
-      <form onSubmit={handleSubmit} className="mt-2 flex gap-2 items-center">
+
+      <div className="flex sm:hidden overflow-x-auto gap-1 py-2 my-1 border-t border-b border-border/20 text-[10px] font-mono no-scrollbar">
+        {["ESC", "TAB", "CTRL", "ALT", "/", "-", "|", "▲", "▼", "?"].map((key) => (
+          <button
+            key={key}
+            onClick={() => handleToolbarTap(key)}
+            type="button"
+            className="px-2 py-1 bg-secondary/50 hover:bg-secondary rounded border border-border/50 shrink-0 text-muted-foreground"
+          >
+            {key}
+          </button>
+        ))}
+      </div>
+
+      <form id="terminal-form" onSubmit={handleSubmit} className="mt-2 flex gap-2 items-center">
         <span className="text-primary">{">"}</span>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={isProcessing}
           className="bg-transparent flex-1 outline-none text-foreground placeholder:text-muted-foreground/50"
-          placeholder="Enter command..."
+          placeholder={isProcessing ? "Processing..." : "Enter command..."}
           autoComplete="off"
           spellCheck="false"
         />
@@ -175,18 +272,34 @@ export function TerminalCommandPrompt() {
   );
 }
 
-function TypewriterText({ text }: { text: string }) {
-  const [displayed, setDisplayed] = useState("");
+function InstallProgress({ pkg, onComplete }: { pkg: string; onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    let i = 0;
+    let current = 0;
     const interval = setInterval(() => {
-      setDisplayed(text.slice(0, i + 1));
-      i++;
-      if (i >= text.length) clearInterval(interval);
-    }, 10);
+      current += Math.floor(Math.random() * 15) + 5;
+      if (current >= 100) {
+        current = 100;
+        clearInterval(interval);
+        setTimeout(onComplete, 300);
+      }
+      setProgress(current);
+    }, 150);
     return () => clearInterval(interval);
-  }, [text]);
+  }, [onComplete]);
 
-  return <div className="text-muted-foreground">{displayed}</div>;
+  const barCount = 24;
+  const filledBars = Math.floor((progress / 100) * barCount);
+  const barString = "=".repeat(filledBars) + " ".repeat(barCount - filledBars);
+
+  return (
+    <div className="flex flex-col gap-1 text-primary">
+      <div>[PKG] Installing dependency '{pkg}'...</div>
+      <div>
+        [PKG] Unpacking [{barString}] {progress}%
+      </div>
+      {progress === 100 && <div>[PKG] Successfully installed '{pkg}'.</div>}
+    </div>
+  );
 }

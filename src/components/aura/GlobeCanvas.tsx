@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
 import * as topojson from "topojson-client";
 import { threatBand, threatScore, type GeoNode } from "./data";
 import { useSpring } from "@react-spring/web";
 import { useDrag } from "@use-gesture/react";
+import { useTelemetryStore } from "@/store/telemetryStore";
+import { wrap } from "comlink";
+import type { WorkerAPI } from "@/workers/telemetryWorker";
 
 export type { GeoNode };
 
@@ -32,9 +35,20 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
   selectHandler.current = onSelect;
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
-
   const targetLocationRef = useRef<[number, number] | null>(null);
   const worldAtlas = useRef<GeoJSON.FeatureCollection | null>(null);
+  const focusedTarget = useTelemetryStore((state) => state.focusedTarget);
+
+  // Worker instance
+  const workerApi = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const worker = new Worker(new URL("@/workers/telemetryWorker.ts", import.meta.url), {
+      type: "module",
+    });
+    return wrap<typeof WorkerAPI>(worker);
+  }, []);
+
+  const countryScoresCache = useRef<Record<string, { total: number; count: number }>>({});
 
   // React Spring for physics-based rotation
   const [{ spinX, spinY, animZoom }, api] = useSpring(() => ({
@@ -47,6 +61,12 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
   useEffect(() => {
     api.start({ animZoom: zoom });
   }, [zoom, api]);
+
+  useEffect(() => {
+    if (focusedTarget) {
+      targetLocationRef.current = [focusedTarget.lon, focusedTarget.lat];
+    }
+  }, [focusedTarget]);
 
   const interactionTimer = useRef<number | null>(null);
   const autoRotate = useRef(true);
@@ -189,17 +209,17 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
 
       const path = d3.geoPath(projection, ctx);
 
+      // We need to keep the draw loop sync, so we trigger async worker calculate and use a cached ref.
+      if (workerApi) {
+        workerApi.computeCountryScores(nodesRef.current).then((scores) => {
+          countryScoresCache.current = scores;
+        });
+      }
+
       // Draw Countries
       if (worldAtlas.current) {
-        // Calculate country scores
-        const countryScores: Record<string, { total: number; count: number }> = {};
-        for (const n of nodesRef.current) {
-          if (!countryScores[n.country]) {
-            countryScores[n.country] = { total: 0, count: 0 };
-          }
-          countryScores[n.country].total += threatScore(n);
-          countryScores[n.country].count += 1;
-        }
+        // Use cached scores
+        const countryScores = countryScoresCache.current;
 
         // Zoom sensitive scaling
         const scaleFactor = Math.max(0.2, 1 / z);
@@ -313,6 +333,17 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
       const y = ev.clientY - rect.top;
 
       let hovered: GeoNode | null = null;
+      if (workerApi) {
+        workerApi.calculateHitDistances(hits, x, y).then((best) => {
+          if (best) {
+            canvas.style.cursor = "pointer";
+          } else {
+            canvas.style.cursor = "grab";
+          }
+        });
+        return; // Let async resolve
+      }
+
       let minD = 20;
       for (const hit of hits) {
         const d = Math.hypot(hit.x - x, hit.y - y);
@@ -326,14 +357,19 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
 
     canvas.addEventListener("pointermove", onPointerMove);
 
-    const onClick = (ev: MouseEvent) => {
+    const onClick = async (ev: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
+
       let best: { node: GeoNode; d: number } | null = null;
-      for (const hit of hits) {
-        const d = Math.hypot(hit.x - x, hit.y - y);
-        if (d < 16 && (!best || d < best.d)) best = { node: hit.node, d };
+      if (workerApi) {
+        best = await workerApi.calculateHitDistances(hits, x, y);
+      } else {
+        for (const hit of hits) {
+          const d = Math.hypot(hit.x - x, hit.y - y);
+          if (d < 16 && (!best || d < best.d)) best = { node: hit.node, d };
+        }
       }
       if (best) {
         selectHandler.current?.(best.node);
@@ -361,7 +397,7 @@ export function GlobeCanvas({ nodes, selectedId, onSelect, mode, zoom }: Props) 
       canvas.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("resize", resize);
     };
-  }, [mode, api, spinX, spinY]);
+  }, [mode, api, spinX, spinY, animZoom, workerApi]);
 
   return (
     <canvas
