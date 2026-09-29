@@ -11,7 +11,8 @@ import {
   TerminalSquare,
   Plane,
 } from "lucide-react";
-import { EGRESS_NODES, type Tenant } from "./data";
+import { type Tenant } from "./data";
+import { EgressRouter } from "@/lib/EgressRouter";
 import { OnboardDomainModal } from "./OnboardDomainModal";
 import { ScanlineOverlay } from "./ScanlineOverlay";
 import { SystemDiagnosticsDrawer } from "./SystemDiagnosticsDrawer";
@@ -51,9 +52,10 @@ function Metric({
 function ThreatPanel() {
   const events = useTelemetryStore((state) => state.events);
   const activeNodes = useTelemetryStore((state) => state.activeNodes);
+  const egressRouter = useMemo(() => EgressRouter.fromEnvironment(), []);
   const egressIndex = useTelemetryStore((state) => state.egressIndex);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
-  const egress = EGRESS_NODES[egressIndex] ?? EGRESS_NODES[0];
+  const egress = egressRouter.list()[egressIndex] ?? egressRouter.resolve();
   const parsedEvents = useMemo(
     () => events.map((event) => ({ ...event, at: new Date(event.at) })),
     [events],
@@ -107,7 +109,7 @@ function ThreatPanel() {
               variant="ghost"
               size="icon"
               className="size-7"
-              onClick={() => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length)}
+              onClick={() => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1))}
               aria-label="Cycle egress node"
               title="Cycle egress node"
             >
@@ -119,12 +121,12 @@ function ThreatPanel() {
               <p className="truncate text-primary">
                 {egress.id} / {egress.city}
               </p>
-              <p className="truncate text-muted-foreground">{egress.decoy}</p>
+              <p className="truncate text-muted-foreground">{egress.url}</p>
             </div>
             <div className="text-right">
-              <p>{egress.latency}ms</p>
+              <p>configured</p>
               <p className={egress.masked ? "text-success" : "text-warning"}>
-                {egress.masked ? "MASKED" : "EXPOSED"}
+                CONFIGURED
               </p>
             </div>
           </div>
@@ -248,7 +250,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   const critical = events.filter((event) => event.severity === "critical").length;
 
 
-  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length));
+  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1)));
   useKeyboardShortcut("m", () => setMapViewMode("map"));
   useKeyboardShortcut("g", () => setMapViewMode("globe"));
 
