@@ -20,8 +20,6 @@ import { MapLayer } from "./MapLayer";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { Button } from "../ui/button";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { TelemetryEngine } from "@/lib/TelemetryEngine";
-import { auditLayout } from "@/lib/LayoutAuditor";
 import { ThreatPanel } from "./ThreatPanel";
 import { TenantsPanel } from "./TenantsPanel";
 import { FlightFeedModule } from "./FlightFeedModule";
@@ -249,11 +247,6 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const critical = events.filter((event) => event.severity === "critical").length;
 
-  useEffect(() => {
-    const engine = TelemetryEngine.getInstance();
-    engine.start();
-    return () => engine.stop();
-  }, []);
 
   useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length));
   useKeyboardShortcut("m", () => setMapViewMode("map"));
@@ -351,8 +344,8 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
           </div>
         </section>
 
-        {!panelsMinimized && (
-          {viewportMode !== "GLOBE" && <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
+        {!panelsMinimized && viewportMode !== "GLOBE" && (
+          <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
             <div className="grid h-10 shrink-0 grid-cols-3 border-b border-border p-1">
               <Button
                 variant={desktopPanel === "threats" ? "secondary" : "ghost"}
@@ -377,7 +370,8 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
               </Button>
             </div>
             {desktopPanel === "threats" ? <ThreatPanel /> : desktopPanel === "tenants" ? <TenantsPanel /> : <FlightFeedModule />}
-          </aside>}
+          </aside>
+        )}
       </div>
 
       {viewportMode === "TERMINAL" && (
