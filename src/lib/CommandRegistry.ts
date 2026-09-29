@@ -36,10 +36,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Runs perimeter security scans on target domain/IP and computes Threat Score.",
     execute: (args, setResponse) => {
       const target = args["target"] || "unknown-target";
-      const score = Math.floor(Math.random() * 50) + 50; // Random score 50-100
-      setResponse(
-        `[SCAN] Target: ${target} | Threat Score: ${score}/100 (${score > 80 ? "CRITICAL" : "WARNING"})`,
-      );
+      setResponse("[SCAN] Browser runtime cannot perform an authorized perimeter scan. Configure the AURA runtime agent.");
     },
   },
   find: {
@@ -200,11 +197,10 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     name: "ping",
     requiredPkg: "net-analyzer-v2",
     description: "Measures latency and packet response metrics to target hosts.",
-    execute: (args, setResponse) => {
-      const host = (args["host"] as string) || "localhost";
-      setResponse(
-        `[PING] 64 bytes from target ${host}: icmp_seq=1 time=${Math.floor(Math.random() * 40 + 10)}ms`,
-      );
+    execute: async (args, setResponse) => {
+      const host = String(args["host"] || "").trim();
+      if (!host) { setResponse("[PING] Host is required."); return; }
+      setResponse("[PING] Use the configured AURA runtime agent for an actual TCP/ICMP measurement.");
     },
   },
   traceroute: {
@@ -212,8 +208,8 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "net-analyzer-v2",
     description: "Traces simulated network hops across ghost proxy nodes.",
     execute: (args, setResponse) => {
-      const target = (args["target"] as string) || "192.168.0.1";
-      setResponse(`[TRACE] Hop 1: 10.0.4.1 -> Hop 2: 185.220.101.5 [Target ${target} Reached]`);
+      const target = String(args["target"] || "").trim();
+      setResponse(target ? "[TRACE] Native traceroute is unavailable in the browser; agent integration required." : "[TRACE] Target is required.");
     },
   },
   theme: {
