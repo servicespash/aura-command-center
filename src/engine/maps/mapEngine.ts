@@ -1,29 +1,41 @@
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-// Interface for offline spatial engine
+const STYLE_URL =
+  import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty";
+
 export const SpatialEngine = {
-  async initializeMap(container: string) {
-    const map = new maplibregl.Map({
+  initializeMap(container: string | HTMLElement) {
+    return new maplibregl.Map({
       container,
-      style: {
-        version: 8,
-        sources: {
-          "offline-tiles": {
-            type: "vector",
-            tiles: ["local://tiles/{z}/{x}/{y}.pbf"], // Simulated local binding
-            maxzoom: 14,
-          },
-        },
-        layers: [],
-      },
+      style: STYLE_URL,
+      center: [0, 20],
+      zoom: 1.4,
+      projection: { type: "globe" },
+      attributionControl: true,
+      dragRotate: true,
+      touchPitch: true,
+      maxPitch: 85,
     });
-    return map;
+  },
+
+  flyTo(map: maplibregl.Map, center: [number, number], zoom = 7) {
+    map.flyTo({
+      center,
+      zoom,
+      speed: 0.8,
+      curve: 1.4,
+      essential: true,
+    });
   },
 
   async resolveGeoIP(ip: string): Promise<[number, number]> {
-    // Simulation of reading local GeoLite2-City.mmdb binary
-    console.log(`[MAP] Accessing local MMDB: /assets/GeoLite2-City.mmdb for IP: ${ip}`);
-    return [37.7749, -122.4194]; // Default to San Francisco
+    const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip.trim())}/latlong/`);
+    if (!response.ok) throw new Error(`GeoIP provider returned HTTP ${response.status}`);
+    const [lat, lon] = (await response.text()).trim().split(",").map(Number);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      throw new Error("GeoIP provider returned invalid coordinates");
+    }
+    return [lon, lat];
   },
 };
