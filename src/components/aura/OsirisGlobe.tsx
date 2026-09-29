@@ -102,7 +102,7 @@ export function OsirisGlobe({ zoom }: { zoom: number }) {
         arcAltitudeAutoScale={0.3}
         arcLabel={(arc) => {
           const a = arc as ArcData;
-          return `Flight Path<br/>Speed: ${(Math.random() * 200 + 300).toFixed(0)} kts<br/>Alt: ${(Math.random() * 30000 + 5000).toFixed(0)} ft`;
+          return `<b>${a.label}</b><br/>Observed score: ${a.score}`;
         }}
         onArcClick={(arc) => {
           const a = arc as ArcData;
