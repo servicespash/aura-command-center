@@ -63,13 +63,13 @@ export function OnboardDomainModal({
               <Label>Verification Method</Label>
               <div className="flex flex-col gap-2">
                 {AUTH_PROVIDERS.map((provider) => (
-                    <Button
+                  <Button
                     key={provider}
                     variant={method === provider ? "default" : "outline"}
                     onClick={() => setMethod(provider)}
-                    >
+                  >
                     {provider}
-                    </Button>
+                  </Button>
                 ))}
               </div>
               <Button onClick={() => setStep(3)}>Continue</Button>

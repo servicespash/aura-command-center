@@ -1,4 +1,3 @@
-
 /**
  * Real-world security risk indices (0-100).
  * Country risk based on Global Cybersecurity Index and known proxy density.
@@ -113,12 +112,7 @@ export function bandTextClass(band: ThreatBand) {
       : "text-success";
 }
 
-export const AUTH_PROVIDERS = [
-  "Google OAuth",
-  "GitHub",
-  "Okta",
-  "Azure AD"
-];
+export const AUTH_PROVIDERS = ["Google OAuth", "GitHub", "Okta", "Azure AD"];
 
 export type Tenant = {
   domain: string;

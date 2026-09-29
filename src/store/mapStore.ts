@@ -1,10 +1,10 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface MapState {
   flyToTarget: [number, number] | null;
   triggerFlyTo: (coords: [number, number]) => void;
-  streamTarget: any | null;
-  setStreamTarget: (target: any | null) => void;
+  streamTarget: unknown | null;
+  setStreamTarget: (target: unknown | null) => void;
 }
 
 export const useMapStore = create<MapState>((set) => ({

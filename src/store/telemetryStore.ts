@@ -1,10 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {
-  ThreatEvent,
-  Tenant,
-  GeoNode,
-} from "@/components/aura/data";
+import { ThreatEvent, Tenant, GeoNode } from "@/components/aura/data";
 import { StorageService } from "@/lib/StorageService";
 
 interface TelemetryState {
@@ -19,6 +15,8 @@ interface TelemetryState {
   mapZoom: number;
   mapCenter: [number, number];
   mapViewMode: "globe" | "map";
+  isFlightTrackingOpen: boolean;
+  isTerminalOpen: boolean;
 
   // Actions
   addEvent: (event: ThreatEvent) => void;
@@ -34,6 +32,8 @@ interface TelemetryState {
   setMapZoom: (zoom: number) => void;
   setMapCenter: (center: [number, number]) => void;
   setMapViewMode: (mode: "globe" | "map") => void;
+  toggleFlightTracking: () => void;
+  toggleTerminal: () => void;
   clearData: () => void;
   archiveByDate: (cutoff: Date) => Promise<void>;
 }
@@ -66,6 +66,8 @@ export const useTelemetryStore = create<TelemetryState>()(
       mapZoom: 1,
       mapCenter: [0, 0],
       mapViewMode: "globe",
+      isFlightTrackingOpen: false,
+      isTerminalOpen: true,
 
       addEvent: (event) => set((state) => ({ events: [event, ...state.events].slice(0, 100) })),
 
@@ -106,10 +108,12 @@ export const useTelemetryStore = create<TelemetryState>()(
       toggleAudio: () => set((state) => ({ audioEnabled: !state.audioEnabled })),
 
       setFocusedTarget: (focusedTarget) => set({ focusedTarget }),
-      
+
       setMapZoom: (mapZoom) => set({ mapZoom }),
       setMapCenter: (mapCenter) => set({ mapCenter }),
       setMapViewMode: (mapViewMode) => set({ mapViewMode }),
+      toggleFlightTracking: () => set((state) => ({ isFlightTrackingOpen: !state.isFlightTrackingOpen })),
+      toggleTerminal: () => set((state) => ({ isTerminalOpen: !state.isTerminalOpen })),
 
       clearData: () => {
         set({ events: [], tenants: [], activeNodes: 0 });

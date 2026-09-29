@@ -1,6 +1,6 @@
 export enum TelemetryPayloadType {
-  RAW_EDGE_PROBE = 'RAW_EDGE_PROBE',
-  VERIFIED_TENANT_TELEMETRY = 'VERIFIED_TENANT_TELEMETRY'
+  RAW_EDGE_PROBE = "RAW_EDGE_PROBE",
+  VERIFIED_TENANT_TELEMETRY = "VERIFIED_TENANT_TELEMETRY",
 }
 
 export interface TelemetryPayload {
@@ -41,16 +41,16 @@ export class TelemetrySink {
   private handleRawProbe(payload: TelemetryPayload): void {
     const signature = `${payload.ip}:${payload.path}`;
     const count = this.probeScanCounters.get(signature) || 0;
-    
+
     // Eliminate WebSocket/UI flooding by dropping excess high-frequency scans
     if (count > 50) {
       // Drop silently at proxy layer
       return;
     }
-    
+
     this.probeScanCounters.set(signature, count + 1);
     this.edgeProbeBuffer.push(payload);
-    
+
     // Periodic flush logic would go here
     if (this.edgeProbeBuffer.length > 1000) {
       this.flushProbes();
@@ -59,7 +59,7 @@ export class TelemetrySink {
 
   private handleVerifiedTelemetry(payload: TelemetryPayload): void {
     if (!payload.sessionId || !payload.hardwareFingerprint) {
-      console.warn('[TelemetrySink] Dropping verified telemetry missing session/hardware keys.');
+      console.warn("[TelemetrySink] Dropping verified telemetry missing session/hardware keys.");
       return;
     }
 
@@ -72,7 +72,7 @@ export class TelemetrySink {
         hardwareFingerprint: payload.hardwareFingerprint,
         compositeKey,
         ipHistory: [payload.ip],
-        lastSeen: payload.timestamp
+        lastSeen: payload.timestamp,
       };
       this.activeSessions.set(compositeKey, session);
     } else {
@@ -80,7 +80,9 @@ export class TelemetrySink {
       const lastIp = session.ipHistory[session.ipHistory.length - 1];
       if (lastIp !== payload.ip) {
         session.ipHistory.push(payload.ip);
-        console.log(`[TelemetrySink] IP Handover detected for ${compositeKey}: ${lastIp} -> ${payload.ip}`);
+        console.log(
+          `[TelemetrySink] IP Handover detected for ${compositeKey}: ${lastIp} -> ${payload.ip}`,
+        );
       }
       session.lastSeen = payload.timestamp;
     }

@@ -1,39 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { AviationTelemetry } from "@/engine/osint/aviation";
 import { useMapStore } from "@/store/mapStore";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { globalEvents, EVENTS } from "@/lib/events";
+import { ThreatHeatmap } from "./ThreatHeatmap";
 
 type Props = {
   zoom: number;
+  viewMode: string;
 };
 
-export function MapLibreCanvas({ zoom }: Props) {
+export function MapLibreCanvas({ zoom, viewMode }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [map, setMap] = useState<maplibregl.Map | null>(null);
   const { setStreamTarget } = useMapStore();
   const events = useTelemetryStore((state) => state.events);
 
-  useEffect(() => {
-    if (mapRef.current && mapRef.current.getSource("threat-intel")) {
-      const geojson = {
-        type: "FeatureCollection",
-        features: events.map(e => ({
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [e.lon || 0, e.lat || 0] },
-          properties: { ...e }
-        }))
-      };
-      (mapRef.current.getSource("threat-intel") as maplibregl.GeoJSONSource).setData(geojson as any);
+  useLayoutEffect(() => {
+    if (viewMode !== "map" || !mapContainer.current) return;
+
+    if (map) {
+      map.resize();
+      return;
     }
-  }, [events]);
-
-  useEffect(() => {
-    if (!mapContainer.current) return;
-
-    const map = new maplibregl.Map({
+    
+    const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: {
         version: 8,
@@ -49,7 +42,7 @@ export function MapLibreCanvas({ zoom }: Props) {
             id: "background",
             type: "background",
             paint: {
-              "background-color": "rgba(2, 6, 23, 1)", // Dark theme background
+              "background-color": "rgba(2, 6, 23, 1)",
             },
           },
         ],
@@ -60,53 +53,45 @@ export function MapLibreCanvas({ zoom }: Props) {
       attributionControl: false,
     });
 
-    map.on("load", async () => {
-      // Fetch initial subset within current bounds using flatbush indexing
-      const bounds = map.getBounds();
+    mapInstance.on("load", async () => {
+      const bounds = mapInstance.getBounds();
       const initialData = await AviationTelemetry.queryViewport(
         bounds.getWest(),
         bounds.getSouth(),
         bounds.getEast(),
-        bounds.getNorth()
+        bounds.getNorth(),
       );
 
-      map.addSource("aviation-telemetry", {
+      mapInstance.addSource("aviation-telemetry", {
         type: "geojson",
-        data: initialData as any,
-        cluster: false, // High density instanced rendering
+        data: initialData as GeoJSON.FeatureCollection,
+        cluster: false,
       });
 
-      // Custom webgl-optimized point buffer layer via standard circle layer
-      map.addLayer({
+      mapInstance.addLayer({
         id: "aviation-points",
         type: "circle",
         source: "aviation-telemetry",
         paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            0, 1.5,
-            5, 3,
-            10, 6,
-          ],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.5, 5, 3, 10, 6],
           "circle-color": [
             "match",
             ["get", "type"],
-            "satellite", "#ef4444", // Destructive red
-            "#38bdf8", // Primary blue
+            "satellite",
+            "#ef4444",
+            "#38bdf8",
           ],
           "circle-opacity": 0.8,
           "circle-stroke-width": 0,
         },
       });
 
-      map.addSource("threat-intel", {
+      mapInstance.addSource("threat-intel", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
 
-      map.addLayer({
+      mapInstance.addLayer({
         id: "threat-points",
         type: "circle",
         source: "threat-intel",
@@ -117,84 +102,83 @@ export function MapLibreCanvas({ zoom }: Props) {
         },
       });
 
-
-      // Handle spatial culling via Flatbush on viewport change
       const updateSpatialIndex = async () => {
-        const currentBounds = map.getBounds();
+        const currentBounds = mapInstance.getBounds();
         const filteredData = await AviationTelemetry.queryViewport(
           currentBounds.getWest(),
           currentBounds.getSouth(),
           currentBounds.getEast(),
-          currentBounds.getNorth()
+          currentBounds.getNorth(),
         );
-        (map.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(filteredData as any);
+        (mapInstance.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(
+          filteredData as GeoJSON.FeatureCollection,
+        );
       };
 
-      map.on("moveend", updateSpatialIndex);
-      map.on("zoomend", updateSpatialIndex);
-
-      // Handle interactions for HUD stream deck
-      map.on("mouseenter", "aviation-points", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      
-      map.on("mouseleave", "aviation-points", () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      map.on("click", "aviation-points", (e) => {
+      mapInstance.on("moveend", updateSpatialIndex);
+      mapInstance.on("zoomend", updateSpatialIndex);
+      mapInstance.on("mouseenter", "aviation-points", () => (mapInstance.getCanvas().style.cursor = "pointer"));
+      mapInstance.on("mouseleave", "aviation-points", () => (mapInstance.getCanvas().style.cursor = ""));
+      mapInstance.on("click", "aviation-points", (e) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
-        if (!feature) return;
-        const coords = (feature.geometry as any).coordinates;
+        const coords = (feature.geometry as GeoJSON.Point).coordinates;
         setStreamTarget({
-          id: (feature.properties as any)?.['id'],
+          id: (feature.properties as Record<string, unknown> | null)?.["id"],
           lat: coords[1],
-          lon: coords[0]
+          lon: coords[0],
         });
       });
+
+      setTimeout(() => mapInstance.resize(), 300);
+      setMap(mapInstance);
     });
 
-    mapRef.current = map;
-
     return () => {
-      map.remove();
+      mapInstance.remove();
+      setMap(null);
     };
-  }, []);
+  }, [viewMode]);
 
-  // Handle fly-to custom event triggered by MMDBReader
   useEffect(() => {
-    const handleFlyTo = (payload: { center: [number, number], zoom: number }) => {
-      if (mapRef.current) {
-        mapRef.current.flyTo({
-          center: payload.center,
-          zoom: payload.zoom || 6,
-          speed: 1.2,
-          curve: 1.4,
-          essential: true,
-        });
+    if (map && map.getSource("threat-intel")) {
+      const geojson = {
+        type: "FeatureCollection",
+        features: events.map((e) => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [e.lon || 0, e.lat || 0] },
+          properties: { ...e },
+        })),
+      };
+      (map.getSource("threat-intel") as maplibregl.GeoJSONSource).setData(
+        geojson as GeoJSON.FeatureCollection,
+      );
+    }
+  }, [events, map]);
+
+  useEffect(() => {
+    const handleFlyTo = (payload: { center: [number, number]; zoom: number }) => {
+      if (map) {
+        map.flyTo({ center: payload.center, zoom: payload.zoom || 6, speed: 1.2, curve: 1.4, essential: true });
       }
     };
-
     globalEvents.on(EVENTS.MAP_FLY_TO, handleFlyTo);
+    return () => { globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo) };
+  }, [map]);
 
-    return () => {
-      globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo);
-    };
-  }, []);
-
-  // Handle zoom prop changes from TacticalZoomController
   useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.easeTo({ zoom });
-    }
-  }, [zoom]);
+    if (map) map.easeTo({ zoom });
+  }, [zoom, map]);
 
   return (
-    <div 
-      ref={mapContainer} 
+    <div
+      ref={mapContainer}
       className="absolute inset-0 h-full w-full"
-      style={{ background: 'transparent' }}
-    />
+    >
+      <div className="absolute top-4 left-4 z-10 border-2 border-dashed border-red-500 bg-black/70 text-red-400 p-3 text-xs font-mono tracking-wider pointer-events-none">
+        Map Initialized
+      </div>
+      {map && <ThreatHeatmap map={map} events={events} />}
+    </div>
   );
 }

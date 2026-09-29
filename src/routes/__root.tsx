@@ -81,7 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "AURA-NET global threat intelligence command system." },
       { name: "author", content: "AURA-NET" },
       { property: "og:title", content: "AURA-NET Command System" },
-      { property: "og:description", content: "Global threat intelligence and perimeter telemetry command system." },
+      {
+        property: "og:description",
+        content: "Global threat intelligence and perimeter telemetry command system.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
@@ -127,6 +130,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex h-dvh w-screen flex-col overflow-hidden">
+        <div id="map-portal-root" className="absolute inset-0 z-0" />
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </div>

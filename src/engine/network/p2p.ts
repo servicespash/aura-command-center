@@ -6,7 +6,7 @@ export class P2PMeshSocket {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
   private messageListeners: Set<(msg: string, fromId: string) => void> = new Set();
-  
+
   public readonly nodeId: string;
 
   private constructor() {
@@ -37,24 +37,24 @@ export class P2PMeshSocket {
       from: this.nodeId,
       to: targetNodeId,
       encryptedPayload: btoa(message), // Simulated AES-GCM
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // In local dev, we broadcast to other tabs to simulate true P2P mesh
-    const bc = new BroadcastChannel('p2p-mesh');
+    const bc = new BroadcastChannel("p2p-mesh");
     bc.postMessage(payload);
     bc.close();
   }
 
   public startListening(): void {
-    const bc = new BroadcastChannel('p2p-mesh');
+    const bc = new BroadcastChannel("p2p-mesh");
     bc.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
         // Only decrypt if it's meant for us (or broadcast)
-        if (payload.to === this.nodeId || payload.to === 'broadcast') {
+        if (payload.to === this.nodeId || payload.to === "broadcast") {
           const decrypted = atob(payload.encryptedPayload);
-          this.messageListeners.forEach(fn => fn(decrypted, payload.from));
+          this.messageListeners.forEach((fn) => fn(decrypted, payload.from));
         }
       } catch (e) {
         // Drop malformed mesh packets

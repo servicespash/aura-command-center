@@ -13,20 +13,26 @@ export class EdgeRevocationMesh {
    * 1. Mint an instant revocation entry keyed by session_id and user_id.
    * 2. Broadcast the revocation event globally across edge nodes.
    */
-  public async revokeSession(sessionId: string, userId: string, reason: string = 'ADMIN_ACTION'): Promise<void> {
+  public async revokeSession(
+    sessionId: string,
+    userId: string,
+    reason: string = "ADMIN_ACTION",
+  ): Promise<void> {
     const record: RevocationRecord = {
       sessionId,
       userId,
       revokedAt: Date.now(),
-      reason
+      reason,
     };
 
     // Store locally in Edge KV/Memory
     const cacheKey = this.buildCacheKey(sessionId, userId);
     this.revocationStore.set(cacheKey, record);
 
-    console.log(`[EdgeRevocationMesh] Revocation minted for Session: ${sessionId}, User: ${userId}`);
-    
+    console.log(
+      `[EdgeRevocationMesh] Revocation minted for Session: ${sessionId}, User: ${userId}`,
+    );
+
     // Broadcast event to other nodes (Simulated)
     await this.broadcastRevocation(record);
   }
@@ -47,7 +53,7 @@ export class EdgeRevocationMesh {
    */
   public gatewayInterceptor(sessionId: string, userId: string): boolean {
     const cacheKey = this.buildCacheKey(sessionId, userId);
-    
+
     if (this.revocationStore.has(cacheKey)) {
       const record = this.revocationStore.get(cacheKey);
       console.warn(`[Gateway] Session rejected at Edge. Reason: ${record?.reason}`);
@@ -60,7 +66,7 @@ export class EdgeRevocationMesh {
   public isUserBanned(userId: string): boolean {
     // Check if any active revocation exists globally for this user
     for (const record of this.revocationStore.values()) {
-      if (record.userId === userId && record.reason.includes('BAN')) {
+      if (record.userId === userId && record.reason.includes("BAN")) {
         return true;
       }
     }

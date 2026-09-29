@@ -1,11 +1,11 @@
-export type ProviderCategory = 
-  | 'Big Tech' 
-  | 'Dev Ecosystem' 
-  | 'Creator Platforms' 
-  | 'Enterprise SSO/OIDC' 
-  | 'Perimeter Nodes/Web3/Domains';
+export type ProviderCategory =
+  | "Big Tech"
+  | "Dev Ecosystem"
+  | "Creator Platforms"
+  | "Enterprise SSO/OIDC"
+  | "Perimeter Nodes/Web3/Domains";
 
-export type StrategyType = 'OAuth2' | 'OIDC' | 'SAML2' | 'Web3Signature' | 'DomainNode';
+export type StrategyType = "OAuth2" | "OIDC" | "SAML2" | "Web3Signature" | "DomainNode";
 
 export interface BaseStrategy {
   type: StrategyType;
@@ -15,36 +15,37 @@ export interface BaseStrategy {
 }
 
 export interface OAuth2Strategy extends BaseStrategy {
-  type: 'OAuth2';
+  type: "OAuth2";
   authorizationEndpoint: string;
   tokenEndpoint: string;
 }
 
 export interface OIDCStrategy extends BaseStrategy {
-  type: 'OIDC';
+  type: "OIDC";
   issuer: string;
   discoveryUrl: string;
 }
 
 export interface SAML2Strategy extends BaseStrategy {
-  type: 'SAML2';
+  type: "SAML2";
   entryPoint: string;
   issuer: string;
 }
 
 export interface Web3SignatureStrategy extends BaseStrategy {
-  type: 'Web3Signature';
+  type: "Web3Signature";
   contractAddress?: string;
   chainIds: number[];
 }
 
 export interface DomainNodeStrategy extends BaseStrategy {
-  type: 'DomainNode';
+  type: "DomainNode";
   nodeUrl: string;
   trustChain: string[];
 }
 
-export type AnyStrategy = OAuth2Strategy | OIDCStrategy | SAML2Strategy | Web3SignatureStrategy | DomainNodeStrategy;
+export type AnyStrategy =
+  OAuth2Strategy | OIDCStrategy | SAML2Strategy | Web3SignatureStrategy | DomainNodeStrategy;
 
 export class ProviderRegistry {
   private providers: Map<string, AnyStrategy> = new Map();
@@ -64,7 +65,7 @@ export class ProviderRegistry {
 
   public async resolveOIDCMetadata(id: string): Promise<Record<string, unknown> | null> {
     const strategy = this.providers.get(id);
-    if (!strategy || strategy.type !== 'OIDC') {
+    if (!strategy || strategy.type !== "OIDC") {
       throw new Error(`Provider ${id} is not an OIDC strategy.`);
     }
 
@@ -88,27 +89,27 @@ export class ProviderRegistry {
 
   // Pre-load common template providers
   public bootstrapTemplates(): void {
-    this.register('google', {
-      type: 'OIDC',
-      name: 'Google Workspace',
-      category: 'Big Tech',
-      issuer: 'https://accounts.google.com',
-      discoveryUrl: 'https://accounts.google.com/.well-known/openid-configuration'
-    });
-    
-    this.register('github', {
-      type: 'OAuth2',
-      name: 'GitHub',
-      category: 'Dev Ecosystem',
-      authorizationEndpoint: 'https://github.com/login/oauth/authorize',
-      tokenEndpoint: 'https://github.com/login/oauth/access_token'
+    this.register("google", {
+      type: "OIDC",
+      name: "Google Workspace",
+      category: "Big Tech",
+      issuer: "https://accounts.google.com",
+      discoveryUrl: "https://accounts.google.com/.well-known/openid-configuration",
     });
 
-    this.register('eth-mainnet', {
-      type: 'Web3Signature',
-      name: 'Ethereum Mainnet',
-      category: 'Perimeter Nodes/Web3/Domains',
-      chainIds: [1]
+    this.register("github", {
+      type: "OAuth2",
+      name: "GitHub",
+      category: "Dev Ecosystem",
+      authorizationEndpoint: "https://github.com/login/oauth/authorize",
+      tokenEndpoint: "https://github.com/login/oauth/access_token",
+    });
+
+    this.register("eth-mainnet", {
+      type: "Web3Signature",
+      name: "Ethereum Mainnet",
+      category: "Perimeter Nodes/Web3/Domains",
+      chainIds: [1],
     });
   }
 }

@@ -35,7 +35,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "net-analyzer-v2",
     description: "Runs perimeter security scans on target domain/IP and computes Threat Score.",
     execute: (args, setResponse) => {
-      const target = args['target'] || "unknown-target";
+      const target = args["target"] || "unknown-target";
       const score = Math.floor(Math.random() * 50) + 50; // Random score 50-100
       setResponse(
         `[SCAN] Target: ${target} | Threat Score: ${score}/100 (${score > 80 ? "CRITICAL" : "WARNING"})`,
@@ -47,14 +47,14 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "geoip-locator",
     description: "Resolves GeoIP coordinates and auto-zooms 3D Globe map with a pulsing indicator.",
     execute: async (args, setResponse) => {
-      const ip = (args['ip'] as string) || "unknown";
-      
+      const ip = (args["ip"] as string) || "unknown";
+
       const result = await MMDBReader.resolve(ip);
       // Optional: hide terminal when executing a find
       globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
-      
+
       setResponse(
-        `[MAP] Target IP ${ip} mapped to Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}...`
+        `[MAP] Target IP ${ip} mapped to Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}...`,
       );
     },
   },
@@ -63,7 +63,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "auth-bridge",
     description: "Prompts credentials or triggers browser redirect to target login gateway.",
     execute: (args, setResponse) => {
-      const target = (args['target'] as string) || (args['url'] as string) || "github";
+      const target = (args["target"] as string) || (args["url"] as string) || "github";
       const url = target.startsWith("http") ? target : `https://${target}.com/login`;
       setResponse(`[AUTH] Redirecting to external gateway: ${url}...`);
       window.open(url, "_blank");
@@ -74,7 +74,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "db-client-suite",
     description: "Prompts for DB credentials to mount a mock remote database terminal context.",
     execute: (args, setResponse) => {
-      const target = (args['target'] as string) || "local";
+      const target = (args["target"] as string) || "local";
       setResponse(`[DB] Connected to PostgreSQL instance @ ${target}.db.internal`);
     },
   },
@@ -83,13 +83,13 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "proxy-cycler",
     description: "Cycles active outbound proxies or displays status.",
     execute: (args, setResponse) => {
-      if (args['cycle']) {
+      if (args["cycle"]) {
         useTelemetryStore.getState().setEgressIndex((i) => (i + 1) % EGRESS_NODES.length);
         const index = useTelemetryStore.getState().egressIndex;
         setResponse(
           `[EGRESS] Shifted active proxy to GH-0${index + 1} (Latency: ${Math.floor(Math.random() * 30 + 10)}ms)`,
         );
-      } else if (args['status']) {
+      } else if (args["status"]) {
         const index = useTelemetryStore.getState().egressIndex;
         setResponse(
           `[EGRESS] Node: GH-0${index + 1} | IP: 185.220.101.${index * 10 + 5} | Status: MASKED`,
@@ -104,7 +104,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "tenant-manager",
     description: "Initiates tenant onboarding flow and generates isolated telemetry key.",
     execute: (args, setResponse) => {
-      const domain = (args['domain'] as string) || "new-tenant.com";
+      const domain = (args["domain"] as string) || "new-tenant.com";
       const key = `tk_live_${Math.random().toString(36).substring(2, 10)}`;
       useTelemetryStore.getState().addTenant({
         domain,
@@ -130,14 +130,14 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "telemetry-core",
     description: "Filters active global threat feeds by severity rating.",
     execute: (args, setResponse) => {
-      const level = (args['level'] as string) || "high";
+      const level = (args["level"] as string) || "high";
       const events = useTelemetryStore
         .getState()
         .events.filter(
           (e) =>
             (level === "high" && e.severity === "critical") ||
-             (level === "med" && e.severity === "elevated") ||
-             (level === "low" && e.severity === "clear"),
+            (level === "med" && e.severity === "elevated") ||
+            (level === "low" && e.severity === "clear"),
         );
       setResponse(
         `[FEED] Filter applied: ${level.toUpperCase()} severity (${events.length} events active)`,
@@ -149,11 +149,11 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "indexeddb-dal",
     description: "Flushes or views active terminal event buffers into/from storage.",
     execute: async (args, setResponse) => {
-      if (args['export']) {
+      if (args["export"]) {
         const events = useTelemetryStore.getState().events;
         await StorageService.archiveEvents(events);
         setResponse(`[DAL] Saved ${events.length} incident logs to IndexedDB partition.`);
-      } else if (args['view']) {
+      } else if (args["view"]) {
         const archived = await StorageService.getArchivedEvents();
         setResponse(`[DAL] Historical archives: ${archived.length} events found in storage.`);
       } else {
@@ -166,7 +166,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "indexeddb-dal",
     description: "Permanently purges a specific telemetry log record from local storage.",
     execute: async (args, setResponse) => {
-      const id = (args['log'] as string) || "unknown";
+      const id = (args["log"] as string) || "unknown";
       const success = await StorageService.deleteArchivedEvent(id);
       if (success) {
         setResponse(`[DAL] Log record #${id} successfully purged.`);
@@ -180,7 +180,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "indexeddb-dal",
     description: "Searches global event logs for matching IP, domain, or timestamp strings.",
     execute: async (args, setResponse) => {
-      const query = (args['query'] as string) || "";
+      const query = (args["query"] as string) || "";
       const archived = await StorageService.getArchivedEvents();
       const matches = archived.filter(
         (e) => e.ip.includes(query) || e.subdomain.includes(query) || e.nodeId.includes(query),
@@ -201,7 +201,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "net-analyzer-v2",
     description: "Measures latency and packet response metrics to target hosts.",
     execute: (args, setResponse) => {
-      const host = (args['host'] as string) || "localhost";
+      const host = (args["host"] as string) || "localhost";
       setResponse(
         `[PING] 64 bytes from target ${host}: icmp_seq=1 time=${Math.floor(Math.random() * 40 + 10)}ms`,
       );
@@ -212,7 +212,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "net-analyzer-v2",
     description: "Traces simulated network hops across ghost proxy nodes.",
     execute: (args, setResponse) => {
-      const target = (args['target'] as string) || "192.168.0.1";
+      const target = (args["target"] as string) || "192.168.0.1";
       setResponse(`[TRACE] Hop 1: 10.0.4.1 -> Hop 2: 185.220.101.5 [Target ${target} Reached]`);
     },
   },
@@ -221,7 +221,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "built-in",
     description: "Forces manual visual themes (standard green, stealth amber, or alert red CRT).",
     execute: (args, setResponse) => {
-      const mode = (args['mode'] as "default" | "stealth" | "alert") || "default";
+      const mode = (args["mode"] as "default" | "stealth" | "alert") || "default";
       if (["default", "stealth", "alert"].includes(mode)) {
         useTelemetryStore.getState().setTheme(mode);
         setResponse(`[THEME] Visual mode updated to '${mode}'`);
@@ -246,9 +246,9 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Installs missing CLI package dependencies into the local package store.",
     execute: async (args, setResponse) => {
       // This will be partially handled in component for animation, but this is the fallback logic.
-      const posArg = args['pos_1'];
-      if (posArg === "install" && args['pos_2']) {
-        const pkg = args['pos_2'] as string;
+      const posArg = args["pos_1"];
+      if (posArg === "install" && args["pos_2"]) {
+        const pkg = args["pos_2"] as string;
         useTelemetryStore.getState().installPackage(pkg);
         setResponse(`[PKG] Installed dependency '${pkg}'.`);
       } else {
@@ -261,7 +261,7 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "built-in",
     description: "Fail-safe: Instant purge of all local storage and RAM state.",
     execute: async (args, setResponse) => {
-      if (args['purge'] && args['confirm']) {
+      if (args["purge"] && args["confirm"]) {
         await PanicService.execute();
         setResponse(`[PANIC] Emergency purge successful.`);
       } else {
@@ -274,12 +274,12 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "p2p-mesh",
     description: "Sends an end-to-end encrypted message to an active node via P2P mesh socket.",
     execute: async (args, setResponse) => {
-      const target = (args['pos_1'] as string) || "broadcast";
-      const message = (args['pos_2'] as string) || "PING";
-      
+      const target = (args["pos_1"] as string) || "broadcast";
+      const message = (args["pos_2"] as string) || "PING";
+
       await globalP2PMesh.sendMessage(target, message);
-      
+
       setResponse(`[P2P] Encrypted payload dispatched to ${target}`);
-    }
+    },
   },
 };
