@@ -225,23 +225,23 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     }
   }, [mapViewMode]);
 
-  // Telemetry simulation
+  const [agentStatus, setAgentStatus] = useState<"WAITING" | "AGENT_ONLINE" | "AGENT_OFFLINE">("WAITING");
+  const [viewportMode, setViewportMode] = useState<"GLOBE" | "PANEL" | "TERMINAL">("GLOBE");
+
   useEffect(() => {
-    const engine = TelemetryEngine.getInstance();
-    const interval = setInterval(() => {
-      engine.ingestRealEvent({
-        id: Math.random().toString(36).slice(2),
-        at: new Date(),
-        nodeId: "node-" + Math.floor(Math.random() * 100),
-        origin: "127.0.0.1",
-        ip: "192.168.1." + Math.floor(Math.random() * 255),
-        kind: "Scan detected",
-        subdomain: "app.secure.io",
-        severity: Math.random() > 0.8 ? "critical" : Math.random() > 0.5 ? "elevated" : "clear",
-        score: Math.floor(Math.random() * 100),
-      });
-    }, 3000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const checkAgent = async () => {
+      try {
+        const token = import.meta.env.VITE_AURA_AGENT_TOKEN;
+        const url = import.meta.env.VITE_AURA_AGENT_URL || "http://127.0.0.1:4317";
+        if (!token) { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); return; }
+        const response = await fetch(url + "/probe", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ operation: "dns", host: "localhost" }), cache: "no-store" });
+        if (!cancelled) setAgentStatus(response.ok ? "AGENT_ONLINE" : "AGENT_OFFLINE");
+      } catch { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); }
+    };
+    void checkAgent();
+    const timer = window.setInterval(checkAgent, 10000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("threats");
@@ -307,10 +307,10 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </nav>
       </header>
 
-      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${panelsMinimized ? "" : "md:flex-row"}`}>
+      <div className={`flex min-h-0 flex-1 overflow-hidden ${viewportMode === "GLOBE" ? "flex-col" : "flex-col md:flex-row"}`}>
         <section
           id="map-viewport"
-          className="relative min-h-0 flex-1 isolate touch-none bg-background"
+          className={`relative min-h-0 isolate touch-none bg-background ${viewportMode === "GLOBE" ? "h-full w-full flex-1" : "flex-1"}`}
           aria-label="Interactive global threat map"
         >
           {portalRoot && createPortal(<MapLayer key={renderKey} />, portalRoot)}
@@ -352,7 +352,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </section>
 
         {!panelsMinimized && (
-          <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
+          {viewportMode !== "GLOBE" && <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
             <div className="grid h-10 shrink-0 grid-cols-3 border-b border-border p-1">
               <Button
                 variant={desktopPanel === "threats" ? "secondary" : "ghost"}
@@ -377,17 +377,16 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
               </Button>
             </div>
             {desktopPanel === "threats" ? <ThreatPanel /> : desktopPanel === "tenants" ? <TenantsPanel /> : <FlightFeedModule />}
-          </aside>
-        )}
+          </aside>}
       </div>
 
-      {!panelsMinimized && (
+      {viewportMode === "TERMINAL" && (
         <div className="hidden h-56 shrink-0 overflow-hidden border-t border-border bg-card/95 md:block">
           <TerminalCommandPrompt />
         </div>
       )}
 
-      <section className="flex h-[42%] min-h-56 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 md:hidden">
+      <section className={`md:hidden flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 ${viewportMode === "GLOBE" ? "hidden" : "h-[42%]"}`}>
         <div className="grid h-11 shrink-0 grid-cols-3 border-b border-border p-1">
           <Button
             variant={mobilePanel === "threats" ? "secondary" : "ghost"}
@@ -422,6 +421,10 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </div>
       </section>
 
+      <div className="md:hidden absolute bottom-3 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded border border-border bg-card/95 p-1 backdrop-blur">
+        {(["GLOBE","PANEL","TERMINAL"] as const).map(mode => <Button key={mode} size="sm" variant={viewportMode === mode ? "default" : "ghost"} onClick={() => setViewportMode(mode)}>{mode === "GLOBE" ? "[MAP]" : mode === "PANEL" ? "[PANELS]" : "[TERMINAL]"}</Button>)}
+      </div>
+      <div className="absolute right-3 top-16 z-50 rounded border border-border bg-card/90 px-2 py-1 font-mono text-[9px] backdrop-blur">{agentStatus}</div>
       <SystemDiagnosticsDrawer
         isOpen={isDiagnosticsOpen}
         onClose={() => setIsDiagnosticsOpen(false)}
