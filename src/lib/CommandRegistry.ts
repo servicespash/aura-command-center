@@ -1,5 +1,5 @@
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { EGRESS_NODES } from "@/components/aura/data";
+import { EgressRouter } from "./EgressRouter";
 import { StorageService } from "./StorageService";
 import { MMDBReader } from "@/services/spatial/mmdbReader";
 import { globalEvents, EVENTS } from "@/lib/events";
@@ -80,20 +80,11 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     requiredPkg: "proxy-cycler",
     description: "Cycles active outbound proxies or displays status.",
     execute: (args, setResponse) => {
-      if (args["cycle"]) {
-        useTelemetryStore.getState().setEgressIndex((i) => (i + 1) % EGRESS_NODES.length);
-        const index = useTelemetryStore.getState().egressIndex;
-        setResponse(
-          `[EGRESS] Shifted active proxy to GH-0${index + 1} (Latency: ${Math.floor(Math.random() * 30 + 10)}ms)`,
-        );
-      } else if (args["status"]) {
-        const index = useTelemetryStore.getState().egressIndex;
-        setResponse(
-          `[EGRESS] Node: GH-0${index + 1} | IP: 185.220.101.${index * 10 + 5} | Status: MASKED`,
-        );
-      } else {
-        setResponse(`[ERROR] Missing flag --cycle or --status`);
-      }
+      if (args["cycle"] || args["status"]) {
+        const router = EgressRouter.fromEnvironment();
+        const endpoint = router.resolve();
+        setResponse(endpoint ? `[EGRESS] Configured endpoint: ${endpoint.id} | ${endpoint.url}` : "[EGRESS] No configured egress endpoints.");
+      } else { setResponse("[ERROR] Missing flag --cycle or --status"); }
     },
   },
   onboard: {
