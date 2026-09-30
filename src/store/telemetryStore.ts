@@ -2,11 +2,12 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { StorageService } from "@/lib/StorageService";
 import type { EvidenceObservation } from "@/lib/EvidencePipeline";
+import type { Tenant, ThreatEvent } from "@/components/aura/data";
 
 interface TelemetryState {
   observations: EvidenceObservation[];
-  events: any[];
-  tenants: any[];
+  events: ThreatEvent[];
+  tenants: Tenant[];
   activeNodes: number;
   egressIndex: number;
   installedPackages: string[];
@@ -19,10 +20,10 @@ interface TelemetryState {
   isFlightTrackingOpen: boolean;
   isTerminalOpen: boolean;
   addObservation: (observation: EvidenceObservation) => void;
-  addEvent: (event: any) => void;
-  setEvents: (events: any[]) => void;
-  addTenant: (tenant: any) => void;
-  setTenants: (tenants: any[]) => void;
+  addEvent: (event: ThreatEvent) => void;
+  setEvents: (events: ThreatEvent[]) => void;
+  addTenant: (tenant: Tenant) => void;
+  setTenants: (tenants: Tenant[]) => void;
   setActiveNodes: (count: number | ((prev: number) => number)) => void;
   setEgressIndex: (index: number | ((prev: number) => number)) => void;
   installPackage: (pkg: string) => void;
