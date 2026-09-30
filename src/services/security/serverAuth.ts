@@ -31,9 +31,9 @@ async function otp(secret: string, counter: number) {
 }
 
 export async function verifyAccess(body: { email?: string; totp?: string; sessionKey?: string }, env: Record<string, unknown>) {
-  const email = String(env.AURA_AUTH_EMAIL ?? "").trim().toLowerCase();
-  const secret = String(env.AURA_TOTP_SECRET ?? "").trim();
-  const sessionKey = String(env.AURA_SESSION_KEY ?? "");
+  const email = String(env["AURA_AUTH_EMAIL"] ?? "").trim().toLowerCase();
+  const secret = String(env["AURA_TOTP_SECRET"] ?? "").trim();
+  const sessionKey = String(env["AURA_SESSION_KEY"] ?? "");
   if (!email || !secret || !sessionKey) throw new Error("Authentication is not configured");
 
   if (!body.email || !equal(body.email.trim().toLowerCase(), email)) throw new Error("Identity assertion rejected");
