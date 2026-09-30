@@ -2,7 +2,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const STYLE_URL =
-  import.meta.env.VITE_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty";
+  import.meta.env["VITE_MAP_STYLE_URL"] || "https://tiles.openfreemap.org/styles/liberty";
 
 export const SpatialEngine = {
   initializeMap(container: string | HTMLElement) {
@@ -12,7 +12,7 @@ export const SpatialEngine = {
       center: [0, 20],
       zoom: 1.4,
       projection: { type: "globe" },
-      attributionControl: true,
+      attributionControl: false,
       dragRotate: true,
       touchPitch: true,
       maxPitch: 85,
