@@ -90,6 +90,15 @@ ${colorConfig
   );
 };
 
+type ChartPayloadItem = {
+  dataKey?: string | number;
+  name?: string;
+  type?: string;
+  payload?: Record<string, unknown>;
+  color?: string;
+  value?: string | number;
+};
+
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
 const ChartTooltipContent = React.forwardRef<
@@ -121,8 +130,7 @@ const ChartTooltipContent = React.forwardRef<
     },
     ref,
   ) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload = payloadProp as any;
+    const payload = (payloadProp ?? []) as unknown as ChartPayloadItem[];
     const { config } = useChart();
 
     const tooltipLabel = React.useMemo(() => {
@@ -140,7 +148,7 @@ const ChartTooltipContent = React.forwardRef<
 
       if (labelFormatter) {
         return (
-          <div className={cn("font-medium", labelClassName)}>{labelFormatter(value, payload)}</div>
+          <div className={cn("font-medium", labelClassName)}>{labelFormatter(value, payload as never)}</div>
         );
       }
 
@@ -172,7 +180,7 @@ const ChartTooltipContent = React.forwardRef<
             .map((item, index) => {
               const key = `${nameKey || item.name || item.dataKey || "value"}`;
               const itemConfig = getPayloadConfigFromPayload(config, item, key);
-              const indicatorColor = color || item.payload.fill || item.color;
+              const indicatorColor = color || String(item.payload?.["fill"] ?? item.color ?? "");
 
               return (
                 <div
@@ -183,7 +191,7 @@ const ChartTooltipContent = React.forwardRef<
                   )}
                 >
                   {formatter && item?.value !== undefined && item.name ? (
-                    formatter(item.value, item.name, item, index, item.payload)
+                    (formatter as unknown as (value: unknown, name?: unknown, item?: unknown, index?: number, payload?: unknown) => React.ReactNode)(item.value, item.name, item, index, item.payload)
                   ) : (
                     <>
                       {itemConfig?.icon ? (
