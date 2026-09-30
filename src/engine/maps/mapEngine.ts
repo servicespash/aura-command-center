@@ -11,7 +11,6 @@ export const SpatialEngine = {
       style: STYLE_URL,
       center: [0, 20],
       zoom: 1.4,
-      projection: { type: "globe" },
       attributionControl: false,
       dragRotate: true,
       touchPitch: true,
@@ -32,7 +31,14 @@ export const SpatialEngine = {
   async resolveGeoIP(ip: string): Promise<[number, number]> {
     const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip.trim())}/latlong/`);
     if (!response.ok) throw new Error(`GeoIP provider returned HTTP ${response.status}`);
-    const [lat, lon] = (await response.text()).trim().split(",").map(Number);
+    const parts = (await response.text()).trim().split(",");
+    const latText = parts[0];
+    const lonText = parts[1];
+    if (latText === undefined || lonText === undefined) {
+      throw new Error("GeoIP provider returned incomplete coordinates");
+    }
+    const lat = Number(latText);
+    const lon = Number(lonText);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       throw new Error("GeoIP provider returned invalid coordinates");
     }
