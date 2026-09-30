@@ -21,8 +21,6 @@ import { MapLayer } from "./MapLayer";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { Button } from "../ui/button";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { ThreatPanel } from "./ThreatPanel";
-import { TenantsPanel } from "./TenantsPanel";
 import { FlightFeedModule } from "./FlightFeedModule";
 
 type MobilePanel = "threats" | "tenants" | "terminal";
@@ -118,15 +116,13 @@ function ThreatPanel() {
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-[10px]">
             <div className="min-w-0">
               <p className="truncate text-primary">
-                {egress.id} / {egress.city}
+                {egress.id} / {egress.label ?? egress.region ?? "configured"}
               </p>
               <p className="truncate text-muted-foreground">{egress.url}</p>
             </div>
             <div className="text-right">
               <p>configured</p>
-              <p className={egress.masked ? "text-success" : "text-warning"}>
-                CONFIGURED
-              </p>
+              <p className="text-success">CONFIGURED</p>
             </div>
           </div>
         </section>
@@ -232,8 +228,8 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     let cancelled = false;
     const checkAgent = async () => {
       try {
-        const token = import.meta.env.VITE_AURA_AGENT_TOKEN;
-        const url = import.meta.env.VITE_AURA_AGENT_URL || "http://127.0.0.1:4317";
+        const token = import.meta.env["VITE_AURA_AGENT_TOKEN"];
+        const url = import.meta.env["VITE_AURA_AGENT_URL"] || "http://127.0.0.1:4317";
         if (!token) { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); return; }
         const response = await fetch(url + "/probe", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ operation: "dns", host: "localhost" }), cache: "no-store" });
         if (!cancelled) setAgentStatus(response.ok ? "AGENT_ONLINE" : "AGENT_OFFLINE");
