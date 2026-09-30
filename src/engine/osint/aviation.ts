@@ -62,7 +62,7 @@ export const AviationTelemetry = {
     const results = index!.search(safeMinX, safeMinY, safeMaxX, safeMaxY);
     return {
       type: "FeatureCollection",
-      features: results.map((i) => allFeatures[i]),
+      features: results.map((i) => allFeatures[i]).filter((feature): feature is Feature => feature !== undefined),
     };
   },
 };
