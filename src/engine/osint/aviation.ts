@@ -30,6 +30,7 @@ export const AviationTelemetry = {
     index = new Flatbush(features.length);
     for (const feature of features) {
       const [lon, lat] = feature.geometry.coordinates;
+      if (lon === undefined || lat === undefined) continue;
       feature.properties = {
         ...feature.properties,
         id: feature.id,
