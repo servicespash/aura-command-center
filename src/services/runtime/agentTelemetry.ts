@@ -1,6 +1,6 @@
 import { ingestVerifiedEvent } from "./telemetryIngest";
-const AGENT_URL = import.meta.env.VITE_AURA_AGENT_URL || "http://127.0.0.1:4317";
-const TOKEN = import.meta.env.VITE_AURA_AGENT_TOKEN || "";
+const AGENT_URL = import.meta.env["VITE_AURA_AGENT_URL"] || "http://127.0.0.1:4317";
+const TOKEN = import.meta.env["VITE_AURA_AGENT_TOKEN"] || "";
 
 export type AgentStatus = "online" | "offline" | "waiting";
 
