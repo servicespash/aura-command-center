@@ -11,7 +11,8 @@ import {
   TerminalSquare,
   Plane,
 } from "lucide-react";
-import { EGRESS_NODES, type Tenant } from "./data";
+import { type Tenant } from "./data";
+import { EgressRouter } from "@/lib/EgressRouter";
 import { OnboardDomainModal } from "./OnboardDomainModal";
 import { ScanlineOverlay } from "./ScanlineOverlay";
 import { SystemDiagnosticsDrawer } from "./SystemDiagnosticsDrawer";
@@ -20,12 +21,9 @@ import { MapLayer } from "./MapLayer";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { Button } from "../ui/button";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { TelemetryEngine } from "@/lib/TelemetryEngine";
-import { auditLayout } from "@/lib/LayoutAuditor";
 import { ThreatPanel } from "./ThreatPanel";
 import { TenantsPanel } from "./TenantsPanel";
 import { FlightFeedModule } from "./FlightFeedModule";
-import { LiveFlightFeed } from "./LiveFlightFeed";
 
 type MobilePanel = "threats" | "tenants" | "terminal";
 
@@ -53,9 +51,10 @@ function Metric({
 function ThreatPanel() {
   const events = useTelemetryStore((state) => state.events);
   const activeNodes = useTelemetryStore((state) => state.activeNodes);
+  const egressRouter = useMemo(() => EgressRouter.fromEnvironment(), []);
   const egressIndex = useTelemetryStore((state) => state.egressIndex);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
-  const egress = EGRESS_NODES[egressIndex] ?? EGRESS_NODES[0];
+  const egress = egressRouter.list()[egressIndex] ?? egressRouter.resolve();
   const parsedEvents = useMemo(
     () => events.map((event) => ({ ...event, at: new Date(event.at) })),
     [events],
@@ -109,7 +108,7 @@ function ThreatPanel() {
               variant="ghost"
               size="icon"
               className="size-7"
-              onClick={() => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length)}
+              onClick={() => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1))}
               aria-label="Cycle egress node"
               title="Cycle egress node"
             >
@@ -121,12 +120,12 @@ function ThreatPanel() {
               <p className="truncate text-primary">
                 {egress.id} / {egress.city}
               </p>
-              <p className="truncate text-muted-foreground">{egress.decoy}</p>
+              <p className="truncate text-muted-foreground">{egress.url}</p>
             </div>
             <div className="text-right">
-              <p>{egress.latency}ms</p>
+              <p>configured</p>
               <p className={egress.masked ? "text-success" : "text-warning"}>
-                {egress.masked ? "MASKED" : "EXPOSED"}
+                CONFIGURED
               </p>
             </div>
           </div>
@@ -187,12 +186,13 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   const [renderKey, setRenderKey] = useState(0);
   const [panelsMinimized, setPanelsMinimized] = useState(window.innerWidth < 768);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const egressRouter = useMemo(() => EgressRouter.fromEnvironment(), []);
 
   useEffect(() => {
     setPortalRoot(document.getElementById("map-portal-root"));
     const handleResize = () => setPanelsMinimized(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Global Key Listeners
@@ -225,43 +225,37 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     }
   }, [mapViewMode]);
 
-  // Telemetry simulation
+  const [agentStatus, setAgentStatus] = useState<"WAITING" | "AGENT_ONLINE" | "AGENT_OFFLINE">("WAITING");
+  const [viewportMode, setViewportMode] = useState<"GLOBE" | "PANEL" | "TERMINAL">("GLOBE");
+
   useEffect(() => {
-    const engine = TelemetryEngine.getInstance();
-    const interval = setInterval(() => {
-      engine.ingestRealEvent({
-        id: Math.random().toString(36).slice(2),
-        at: new Date(),
-        nodeId: "node-" + Math.floor(Math.random() * 100),
-        origin: "127.0.0.1",
-        ip: "192.168.1." + Math.floor(Math.random() * 255),
-        kind: "Scan detected",
-        subdomain: "app.secure.io",
-        severity: Math.random() > 0.8 ? "critical" : Math.random() > 0.5 ? "elevated" : "clear",
-        score: Math.floor(Math.random() * 100),
-      });
-    }, 3000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const checkAgent = async () => {
+      try {
+        const token = import.meta.env.VITE_AURA_AGENT_TOKEN;
+        const url = import.meta.env.VITE_AURA_AGENT_URL || "http://127.0.0.1:4317";
+        if (!token) { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); return; }
+        const response = await fetch(url + "/probe", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ operation: "dns", host: "localhost" }), cache: "no-store" });
+        if (!cancelled) setAgentStatus(response.ok ? "AGENT_ONLINE" : "AGENT_OFFLINE");
+      } catch { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); }
+    };
+    void checkAgent();
+    const timer = window.setInterval(checkAgent, 10000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("threats");
-  const [desktopPanel, setDesktopPanel] = useState<Exclude<MobilePanel, "terminal">>("threats");
+  const [desktopPanel, setDesktopPanel] = useState<"threats" | "tenants" | "flights">("threats");
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const critical = events.filter((event) => event.severity === "critical").length;
 
-  useEffect(() => {
-    const engine = TelemetryEngine.getInstance();
-    engine.start();
-    return () => engine.stop();
-  }, []);
 
-  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % EGRESS_NODES.length));
+  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1)));
   useKeyboardShortcut("m", () => setMapViewMode("map"));
   useKeyboardShortcut("g", () => setMapViewMode("globe"));
 
   return (
     <main className="relative flex h-dvh w-screen flex-col overflow-hidden bg-transparent text-foreground">
-      <LiveFlightFeed />
       <ScanlineOverlay />
       <header className="z-50 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md md:h-16 md:px-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -307,10 +301,10 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </nav>
       </header>
 
-      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${panelsMinimized ? "" : "md:flex-row"}`}>
+      <div className={`flex min-h-0 flex-1 overflow-hidden ${viewportMode === "GLOBE" ? "flex-col" : "flex-col md:flex-row"}`}>
         <section
           id="map-viewport"
-          className="relative min-h-0 flex-1 isolate touch-none bg-background"
+          className={`relative min-h-0 isolate touch-none bg-background ${viewportMode === "GLOBE" ? "h-full w-full flex-1" : "flex-1"}`}
           aria-label="Interactive global threat map"
         >
           {portalRoot && createPortal(<MapLayer key={renderKey} />, portalRoot)}
@@ -351,7 +345,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
           </div>
         </section>
 
-        {!panelsMinimized && (
+        {!panelsMinimized && viewportMode !== "GLOBE" && (
           <aside className="hidden min-h-0 w-96 shrink-0 flex-col overflow-hidden border-l border-border bg-card/95 md:flex">
             <div className="grid h-10 shrink-0 grid-cols-3 border-b border-border p-1">
               <Button
@@ -381,13 +375,13 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         )}
       </div>
 
-      {!panelsMinimized && (
+      {viewportMode === "TERMINAL" && (
         <div className="hidden h-56 shrink-0 overflow-hidden border-t border-border bg-card/95 md:block">
           <TerminalCommandPrompt />
         </div>
       )}
 
-      <section className="flex h-[42%] min-h-56 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 md:hidden">
+      <section className={`md:hidden flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 ${viewportMode === "GLOBE" ? "hidden" : "h-[42%]"}`}>
         <div className="grid h-11 shrink-0 grid-cols-3 border-b border-border p-1">
           <Button
             variant={mobilePanel === "threats" ? "secondary" : "ghost"}
@@ -422,6 +416,10 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </div>
       </section>
 
+      <div className="md:hidden absolute bottom-3 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded border border-border bg-card/95 p-1 backdrop-blur">
+        {(["GLOBE","PANEL","TERMINAL"] as const).map(mode => <Button key={mode} size="sm" variant={viewportMode === mode ? "default" : "ghost"} onClick={() => setViewportMode(mode)}>{mode === "GLOBE" ? "[MAP]" : mode === "PANEL" ? "[PANELS]" : "[TERMINAL]"}</Button>)}
+      </div>
+      <div className="absolute right-3 top-16 z-50 rounded border border-border bg-card/90 px-2 py-1 font-mono text-[9px] backdrop-blur">{agentStatus}</div>
       <SystemDiagnosticsDrawer
         isOpen={isDiagnosticsOpen}
         onClose={() => setIsDiagnosticsOpen(false)}

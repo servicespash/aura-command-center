@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { ThreatEvent, EGRESS_NODES } from "@/components/aura/data";
+import type { ThreatEvent } from "@/components/aura/data";
 
 type ArcData = {
   startLat: number;

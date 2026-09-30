@@ -3,7 +3,7 @@ import Flatbush from "flatbush";
 type Feature = {
   id: string;
   geometry: { coordinates: [number, number] };
-  properties: { mag: number; [key: string]: any };
+  properties: { mag: number; [key: string]: unknown };
 };
 
 // Aviation TLE Propagator with Spatial Indexing
@@ -22,8 +22,8 @@ export const AviationTelemetry = {
       this.processFeatures(data.features || []);
       console.log(`[OSINT] Ingested ${data.features?.length || 0} live telemetry nodes.`);
     } catch (error) {
-      console.warn("[OSINT] Failed to fetch live telemetry, using synthetic fallback:", error);
-      this.processFeatures(this.generateFallbackData());
+      console.error("[OSINT] Live telemetry source unavailable:", error);
+      throw error;
     }
   },
 
@@ -40,14 +40,6 @@ export const AviationTelemetry = {
     }
     index!.finish();
     allFeatures = features;
-  },
-
-  generateFallbackData() {
-    return Array.from({ length: 50 }, (_, i) => ({
-      id: `synth-${i}`,
-      geometry: { coordinates: [Math.random() * 360 - 180, Math.random() * 180 - 90] },
-      properties: { mag: Math.random() * 5 },
-    }));
   },
 
   async getActiveVectors() {
