@@ -47,6 +47,8 @@ export function OsirisGlobe({ zoom }: { zoom: number }) {
         endLng: ev.destLon as number,
         label: ev.kind,
         score: ev.score,
+        label: ev.kind,
+        score: ev.score,
         color:
           ev.severity === "critical"
             ? "#ef4444"
