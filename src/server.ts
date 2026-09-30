@@ -64,8 +64,7 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
-      const runtimeEnv =
-        env && typeof env === "object" ? (env as Record<string, unknown>) : {};
+      const runtimeEnv = env && typeof env === "object" ? (env as Record<string, unknown>) : {};
       const response = await handler.fetch(request, {
         context: {
           env: runtimeEnv,

@@ -16,8 +16,7 @@ export const Route = createFileRoute("/api/auth/verify")({
           await verifyAccess(body, context.env);
           return Response.json({ ok: true });
         } catch (cause) {
-          const message =
-            cause instanceof Error ? cause.message : "Authentication failed";
+          const message = cause instanceof Error ? cause.message : "Authentication failed";
           return Response.json({ ok: false, error: message }, { status: 401 });
         }
       },
