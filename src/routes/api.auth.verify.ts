@@ -1,7 +1,7 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
+import { createServerFileRoute } from "@tanstack/react-start/server";
 import { verifyAccess } from "@/services/security/serverAuth";
 
-export const APIRoute = createAPIFileRoute("/api/auth/verify")({
+export const ServerRoute = createServerFileRoute().methods({
   POST: async ({ request }) => {
     try {
       const body = (await request.json()) as { email?: string; totp?: string; sessionKey?: string };
