@@ -106,7 +106,9 @@ function ThreatPanel() {
               variant="ghost"
               size="icon"
               className="size-7"
-              onClick={() => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1))}
+              onClick={() =>
+                setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1))
+              }
               aria-label="Cycle egress node"
               title="Cycle egress node"
             >
@@ -213,7 +215,12 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         while (parent) {
           const style = window.getComputedStyle(parent);
           if (style.display === "none" || style.visibility === "hidden") {
-            console.warn(`[DOM Audit] Found hidden ancestor:`, parent, style.display, style.visibility);
+            console.warn(
+              `[DOM Audit] Found hidden ancestor:`,
+              parent,
+              style.display,
+              style.visibility,
+            );
           }
           parent = parent.parentElement;
         }
@@ -221,7 +228,9 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
     }
   }, [mapViewMode]);
 
-  const [agentStatus, setAgentStatus] = useState<"WAITING" | "AGENT_ONLINE" | "AGENT_OFFLINE">("WAITING");
+  const [agentStatus, setAgentStatus] = useState<"WAITING" | "AGENT_ONLINE" | "AGENT_OFFLINE">(
+    "WAITING",
+  );
   const [viewportMode, setViewportMode] = useState<"GLOBE" | "PANEL" | "TERMINAL">("GLOBE");
 
   useEffect(() => {
@@ -230,14 +239,27 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
       try {
         const token = import.meta.env["VITE_AURA_AGENT_TOKEN"];
         const url = import.meta.env["VITE_AURA_AGENT_URL"] || "http://127.0.0.1:4317";
-        if (!token) { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); return; }
-        const response = await fetch(url + "/probe", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ operation: "dns", host: "localhost" }), cache: "no-store" });
+        if (!token) {
+          if (!cancelled) setAgentStatus("AGENT_OFFLINE");
+          return;
+        }
+        const response = await fetch(url + "/probe", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: "Bearer " + token },
+          body: JSON.stringify({ operation: "dns", host: "localhost" }),
+          cache: "no-store",
+        });
         if (!cancelled) setAgentStatus(response.ok ? "AGENT_ONLINE" : "AGENT_OFFLINE");
-      } catch { if (!cancelled) setAgentStatus("AGENT_OFFLINE"); }
+      } catch {
+        if (!cancelled) setAgentStatus("AGENT_OFFLINE");
+      }
     };
     void checkAgent();
     const timer = window.setInterval(checkAgent, 10000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, []);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("threats");
@@ -245,8 +267,9 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const critical = events.filter((event) => event.severity === "critical").length;
 
-
-  useKeyboardShortcut("d", () => setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1)));
+  useKeyboardShortcut("d", () =>
+    setEgressIndex((index) => (index + 1) % Math.max(egressRouter.list().length, 1)),
+  );
   useKeyboardShortcut("m", () => setMapViewMode("map"));
   useKeyboardShortcut("g", () => setMapViewMode("globe"));
 
@@ -297,7 +320,9 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </nav>
       </header>
 
-      <div className={`flex min-h-0 flex-1 overflow-hidden ${viewportMode === "GLOBE" ? "flex-col" : "flex-col md:flex-row"}`}>
+      <div
+        className={`flex min-h-0 flex-1 overflow-hidden ${viewportMode === "GLOBE" ? "flex-col" : "flex-col md:flex-row"}`}
+      >
         <section
           id="map-viewport"
           className={`relative min-h-0 isolate touch-none bg-background ${viewportMode === "GLOBE" ? "h-full w-full flex-1" : "flex-1"}`}
@@ -366,7 +391,13 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
                 <Plane /> Flights
               </Button>
             </div>
-            {desktopPanel === "threats" ? <ThreatPanel /> : desktopPanel === "tenants" ? <TenantsPanel /> : <FlightFeedModule />}
+            {desktopPanel === "threats" ? (
+              <ThreatPanel />
+            ) : desktopPanel === "tenants" ? (
+              <TenantsPanel />
+            ) : (
+              <FlightFeedModule />
+            )}
           </aside>
         )}
       </div>
@@ -377,7 +408,9 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
         </div>
       )}
 
-      <section className={`md:hidden flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 ${viewportMode === "GLOBE" ? "hidden" : "h-[42%]"}`}>
+      <section
+        className={`md:hidden flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border bg-card/95 ${viewportMode === "GLOBE" ? "hidden" : "h-[42%]"}`}
+      >
         <div className="grid h-11 shrink-0 grid-cols-3 border-b border-border p-1">
           <Button
             variant={mobilePanel === "threats" ? "secondary" : "ghost"}
@@ -413,9 +446,20 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
       </section>
 
       <div className="md:hidden absolute bottom-3 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded border border-border bg-card/95 p-1 backdrop-blur">
-        {(["GLOBE","PANEL","TERMINAL"] as const).map(mode => <Button key={mode} size="sm" variant={viewportMode === mode ? "default" : "ghost"} onClick={() => setViewportMode(mode)}>{mode === "GLOBE" ? "[MAP]" : mode === "PANEL" ? "[PANELS]" : "[TERMINAL]"}</Button>)}
+        {(["GLOBE", "PANEL", "TERMINAL"] as const).map((mode) => (
+          <Button
+            key={mode}
+            size="sm"
+            variant={viewportMode === mode ? "default" : "ghost"}
+            onClick={() => setViewportMode(mode)}
+          >
+            {mode === "GLOBE" ? "[MAP]" : mode === "PANEL" ? "[PANELS]" : "[TERMINAL]"}
+          </Button>
+        ))}
       </div>
-      <div className="absolute right-3 top-16 z-50 rounded border border-border bg-card/90 px-2 py-1 font-mono text-[9px] backdrop-blur">{agentStatus}</div>
+      <div className="absolute right-3 top-16 z-50 rounded border border-border bg-card/90 px-2 py-1 font-mono text-[9px] backdrop-blur">
+        {agentStatus}
+      </div>
       <SystemDiagnosticsDrawer
         isOpen={isDiagnosticsOpen}
         onClose={() => setIsDiagnosticsOpen(false)}

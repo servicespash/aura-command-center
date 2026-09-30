@@ -7,7 +7,10 @@ import { useTelemetryStore } from "@/store/telemetryStore";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { ThreatHeatmap } from "./ThreatHeatmap";
 
-type TelemetryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>;
+type TelemetryFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  GeoJSON.GeoJsonProperties
+>;
 
 type Props = {
   zoom: number;
@@ -27,7 +30,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
       map.resize();
       return;
     }
-    
+
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -76,13 +79,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
         source: "aviation-telemetry",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.5, 5, 3, 10, 6],
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "satellite",
-            "#ef4444",
-            "#38bdf8",
-          ],
+          "circle-color": ["match", ["get", "type"], "satellite", "#ef4444", "#38bdf8"],
           "circle-opacity": 0.8,
           "circle-stroke-width": 0,
         },
@@ -119,8 +116,16 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
       mapInstance.on("moveend", updateSpatialIndex);
       mapInstance.on("zoomend", updateSpatialIndex);
-      mapInstance.on("mouseenter", "aviation-points", () => (mapInstance.getCanvas().style.cursor = "pointer"));
-      mapInstance.on("mouseleave", "aviation-points", () => (mapInstance.getCanvas().style.cursor = ""));
+      mapInstance.on(
+        "mouseenter",
+        "aviation-points",
+        () => (mapInstance.getCanvas().style.cursor = "pointer"),
+      );
+      mapInstance.on(
+        "mouseleave",
+        "aviation-points",
+        () => (mapInstance.getCanvas().style.cursor = ""),
+      );
       mapInstance.on("click", "aviation-points", (e) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
@@ -162,11 +167,19 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
   useEffect(() => {
     const handleFlyTo = (payload: { center: [number, number]; zoom: number }) => {
       if (map) {
-        map.flyTo({ center: payload.center, zoom: payload.zoom || 6, speed: 1.2, curve: 1.4, essential: true });
+        map.flyTo({
+          center: payload.center,
+          zoom: payload.zoom || 6,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true,
+        });
       }
     };
     globalEvents.on(EVENTS.MAP_FLY_TO, handleFlyTo);
-    return () => { globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo) };
+    return () => {
+      globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo);
+    };
   }, [map]);
 
   useEffect(() => {
@@ -174,10 +187,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
   }, [zoom, map]);
 
   return (
-    <div
-      ref={mapContainer}
-      className="absolute inset-0 h-full w-full"
-    >
+    <div ref={mapContainer} className="absolute inset-0 h-full w-full">
       <div className="absolute top-4 left-4 z-10 border-2 border-dashed border-red-500 bg-black/70 text-red-400 p-3 text-xs font-mono tracking-wider pointer-events-none">
         Map Initialized
       </div>

@@ -11,14 +11,16 @@ export class EgressRouter {
   private readonly endpoints: EgressEndpoint[];
 
   constructor(endpoints: EgressEndpoint[] = []) {
-    this.endpoints = endpoints.filter(e => e.enabled && EgressRouter.isValid(e.url));
+    this.endpoints = endpoints.filter((e) => e.enabled && EgressRouter.isValid(e.url));
   }
 
-  list(): EgressEndpoint[] { return [...this.endpoints]; }
+  list(): EgressEndpoint[] {
+    return [...this.endpoints];
+  }
 
   resolve(id?: string) {
     if (!this.endpoints.length) return undefined;
-    if (id) return this.endpoints.find(e => e.id === id);
+    if (id) return this.endpoints.find((e) => e.id === id);
     return this.endpoints[0];
   }
 
@@ -37,6 +39,8 @@ export class EgressRouter {
     try {
       const url = new URL(value);
       return ["http:", "https:", "socks5:"].includes(url.protocol);
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 }

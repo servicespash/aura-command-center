@@ -31,7 +31,7 @@ export function MapLayer() {
   useLayoutEffect(() => {
     if (mapViewMode === "map" && containerRef.current) {
       auditLayout(containerRef.current);
-      
+
       const resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
@@ -40,10 +40,10 @@ export function MapLayer() {
         }
       });
       resizeObserver.observe(containerRef.current);
-      
+
       const rect = containerRef.current.getBoundingClientRect();
       setIsInitialized(rect.width > 0 && rect.height > 0);
-      
+
       return () => resizeObserver.disconnect();
     }
 
@@ -65,10 +65,10 @@ export function MapLayer() {
       {/* Globe Layer */}
       <div
         className="absolute inset-0 h-full w-full bg-background transition-opacity duration-500 ease-in-out"
-        style={{ 
-          opacity: mapViewMode === "globe" ? 1 : 0, 
+        style={{
+          opacity: mapViewMode === "globe" ? 1 : 0,
           pointerEvents: mapViewMode === "globe" ? "auto" : "none",
-          zIndex: 10 
+          zIndex: 10,
         }}
       >
         <Suspense fallback={null}>
@@ -79,10 +79,10 @@ export function MapLayer() {
       {/* Map Layer */}
       <div
         className="absolute inset-0 h-full w-full transition-opacity duration-500 ease-in-out"
-        style={{ 
-          opacity: mapViewMode === "map" ? 1 : 0, 
+        style={{
+          opacity: mapViewMode === "map" ? 1 : 0,
           pointerEvents: mapViewMode === "map" ? "auto" : "none",
-          zIndex: 20 
+          zIndex: 20,
         }}
       >
         <Suspense fallback={null}>

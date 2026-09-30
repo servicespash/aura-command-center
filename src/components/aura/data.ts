@@ -131,7 +131,6 @@ export type EgressNode = {
   masked: boolean;
 };
 
-
 export type ThreatEvent = {
   id: string;
   at: Date;
@@ -152,6 +151,10 @@ export function eventToRecord(e: ThreatEvent): ConnectionRecord {
   return { at: e.at, ip: e.ip, subdomain: e.subdomain, action: e.kind };
 }
 
-export function generateTxtToken() { return `aura-verify=${crypto.randomUUID()}`; }
+export function generateTxtToken() {
+  return `aura-verify=${crypto.randomUUID()}`;
+}
 
-export function generateTelemetryKey() { return `tk_live_${crypto.randomUUID().replace(/-/g, "")}`; }
+export function generateTelemetryKey() {
+  return `tk_live_${crypto.randomUUID().replace(/-/g, "")}`;
+}

@@ -42,7 +42,9 @@ export const AviationTelemetry = {
     allFeatures = features;
   },
 
-  async getActiveVectors(): Promise<GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>> {
+  async getActiveVectors(): Promise<
+    GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>
+  > {
     if (!index) await this.initialize();
     return {
       type: "FeatureCollection",

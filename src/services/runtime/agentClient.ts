@@ -11,6 +11,7 @@ export async function agentProbe(request: ProbeRequest): Promise<ProbeResponse> 
     body: JSON.stringify(request),
   });
   const result = (await response.json()) as ProbeResponse;
-  if (!response.ok || !result.ok) throw new Error(result.error || `Agent returned HTTP ${response.status}`);
+  if (!response.ok || !result.ok)
+    throw new Error(result.error || `Agent returned HTTP ${response.status}`);
   return result;
 }

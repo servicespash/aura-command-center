@@ -36,7 +36,9 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Runs perimeter security scans on target domain/IP and computes Threat Score.",
     execute: (args, setResponse) => {
       const target = args["target"] || "unknown-target";
-      setResponse("[SCAN] Browser runtime cannot perform an authorized perimeter scan. Configure the AURA runtime agent.");
+      setResponse(
+        "[SCAN] Browser runtime cannot perform an authorized perimeter scan. Configure the AURA runtime agent.",
+      );
     },
   },
   find: {
@@ -83,8 +85,14 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       if (args["cycle"] || args["status"]) {
         const router = EgressRouter.fromEnvironment();
         const endpoint = router.resolve();
-        setResponse(endpoint ? `[EGRESS] Configured endpoint: ${endpoint.id} | ${endpoint.url}` : "[EGRESS] No configured egress endpoints.");
-      } else { setResponse("[ERROR] Missing flag --cycle or --status"); }
+        setResponse(
+          endpoint
+            ? `[EGRESS] Configured endpoint: ${endpoint.id} | ${endpoint.url}`
+            : "[EGRESS] No configured egress endpoints.",
+        );
+      } else {
+        setResponse("[ERROR] Missing flag --cycle or --status");
+      }
     },
   },
   onboard: {
@@ -190,8 +198,13 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Measures latency and packet response metrics to target hosts.",
     execute: async (args, setResponse) => {
       const host = String(args["host"] || "").trim();
-      if (!host) { setResponse("[PING] Host is required."); return; }
-      setResponse("[PING] Use the configured AURA runtime agent for an actual TCP/ICMP measurement.");
+      if (!host) {
+        setResponse("[PING] Host is required.");
+        return;
+      }
+      setResponse(
+        "[PING] Use the configured AURA runtime agent for an actual TCP/ICMP measurement.",
+      );
     },
   },
   traceroute: {
@@ -200,7 +213,11 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     description: "Traces simulated network hops across ghost proxy nodes.",
     execute: (args, setResponse) => {
       const target = String(args["target"] || "").trim();
-      setResponse(target ? "[TRACE] Native traceroute is unavailable in the browser; agent integration required." : "[TRACE] Target is required.");
+      setResponse(
+        target
+          ? "[TRACE] Native traceroute is unavailable in the browser; agent integration required."
+          : "[TRACE] Target is required.",
+      );
     },
   },
   theme: {

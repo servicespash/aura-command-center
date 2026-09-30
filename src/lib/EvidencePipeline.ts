@@ -20,7 +20,10 @@ export type EvidenceObservation = z.infer<typeof EvidenceObservationSchema>;
 
 export function validateObservation(input: unknown): EvidenceObservation {
   const parsed = EvidenceObservationSchema.safeParse(input);
-  if (!parsed.success) throw new Error(`Invalid telemetry observation: ${parsed.error.issues.map(i => i.path.join(".") + " " + i.message).join("; ")}`);
+  if (!parsed.success)
+    throw new Error(
+      `Invalid telemetry observation: ${parsed.error.issues.map((i) => i.path.join(".") + " " + i.message).join("; ")}`,
+    );
   return parsed.data;
 }
 
