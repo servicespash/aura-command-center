@@ -4,9 +4,9 @@ import { Socket } from "node:net";
 import { URL } from "node:url";
 import type { ProbeRequest, ProbeResponse } from "./protocol";
 
-const PORT = Number(process.env.AURA_AGENT_PORT ?? 4317);
-const TOKEN = process.env.AURA_AGENT_TOKEN ?? "";
-const ALLOWLIST = (process.env.AURA_AGENT_ALLOWLIST ?? "")
+const PORT = Number(process.env["AURA_AGENT_PORT"] ?? 4317);
+const TOKEN = process.env["AURA_AGENT_TOKEN"] ?? "";
+const ALLOWLIST = (process.env["AURA_AGENT_ALLOWLIST"] ?? "")
   .split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
 
 function allowed(host: string) {
