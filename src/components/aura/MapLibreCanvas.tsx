@@ -64,7 +64,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
       mapInstance.addSource("aviation-telemetry", {
         type: "geojson",
-        data: initialData as GeoJSON.FeatureCollection,
+        data: initialData,
         cluster: false,
       });
 
@@ -111,7 +111,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
           currentBounds.getNorth(),
         );
         (mapInstance.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(
-          filteredData as GeoJSON.FeatureCollection,
+          filteredData,
         );
       };
 
@@ -152,7 +152,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
         })),
       };
       (map.getSource("threat-intel") as maplibregl.GeoJSONSource).setData(
-        geojson as GeoJSON.FeatureCollection,
+        geojson as GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>,
       );
     }
   }, [events, map]);
