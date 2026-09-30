@@ -122,9 +122,10 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
       mapInstance.on("click", "aviation-points", (e) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
-        const coords = (feature.geometry as GeoJSON.Point).coordinates;
+        if (!feature || feature.geometry.type !== "Point") return;
+        const coords = feature.geometry.coordinates as [number, number];
         setStreamTarget({
-          id: (feature.properties as Record<string, unknown> | null)?.["id"],
+          id: String((feature.properties as Record<string, unknown> | null)?.["id"] ?? ""),
           lat: coords[1],
           lon: coords[0],
         });
