@@ -8,7 +8,7 @@ export function LayoutAuditOverlay() {
       const problematic: HTMLElement[] = [];
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
       let node: Node | null;
-      while (node = walker.nextNode()) {
+      while ((node = walker.nextNode())) {
         const el = node as HTMLElement;
         const style = window.getComputedStyle(el);
         if (style.display === "none" || style.visibility === "hidden" || style.overflow === "hidden") {
