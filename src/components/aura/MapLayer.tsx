@@ -45,9 +45,10 @@ export function MapLayer() {
       setIsInitialized(rect.width > 0 && rect.height > 0);
       
       return () => resizeObserver.disconnect();
-    } else {
-      setIsInitialized(false);
     }
+
+    setIsInitialized(false);
+    return undefined;
   }, [mapViewMode]);
 
   if (!isClient) return null;
