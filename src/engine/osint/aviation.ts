@@ -1,8 +1,7 @@
 import Flatbush from "flatbush";
 
-type Feature = {
+type Feature = GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties> & {
   id: string;
-  geometry: { coordinates: [number, number] };
   properties: { mag: number; [key: string]: unknown };
 };
 
@@ -42,7 +41,7 @@ export const AviationTelemetry = {
     allFeatures = features;
   },
 
-  async getActiveVectors() {
+  async getActiveVectors(): Promise<GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>> {
     if (!index) await this.initialize();
     return {
       type: "FeatureCollection",
@@ -62,7 +61,9 @@ export const AviationTelemetry = {
     const results = index!.search(safeMinX, safeMinY, safeMaxX, safeMaxY);
     return {
       type: "FeatureCollection",
-      features: results.map((i) => allFeatures[i]).filter((feature): feature is Feature => feature !== undefined),
+      features: results
+        .map((i) => allFeatures[i])
+        .filter((feature): feature is Feature => feature !== undefined),
     };
   },
 };
