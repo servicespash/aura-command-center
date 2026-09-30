@@ -9,6 +9,8 @@ type ArcData = {
   endLat: number;
   endLng: number;
   color: string;
+  label?: string;
+  score?: number;
 };
 
 export function OsirisGlobe({ zoom }: { zoom: number }) {
@@ -43,6 +45,8 @@ export function OsirisGlobe({ zoom }: { zoom: number }) {
         startLng: ev.lon as number,
         endLat: ev.destLat as number,
         endLng: ev.destLon as number,
+        label: ev.kind,
+        score: ev.score,
         color:
           ev.severity === "critical"
             ? "#ef4444"
