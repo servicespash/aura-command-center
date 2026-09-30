@@ -21,7 +21,16 @@ function equal(a: string, b: string) {
 }
 
 async function otp(secret: string, counter: number) {
-  const decoded = base32Decode(secret);\n  const raw = new ArrayBuffer(decoded.byteLength);\n  new Uint8Array(raw).set(decoded);\n  const key = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const decoded = base32Decode(secret);
+  const raw = new ArrayBuffer(decoded.byteLength);
+  new Uint8Array(raw).set(decoded);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    raw,
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"],
+  );
   const buffer = new ArrayBuffer(8);
   new DataView(buffer).setBigUint64(0, BigInt(counter), false);
   const digest = new Uint8Array(await crypto.subtle.sign("HMAC", key, buffer));
