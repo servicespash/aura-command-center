@@ -14,7 +14,7 @@ export class EgressRouter {
     this.endpoints = endpoints.filter(e => e.enabled && EgressRouter.isValid(e.url));
   }
 
-  list() { return [...this.endpoints]; }
+  list(): EgressEndpoint[] { return [...this.endpoints]; }
 
   resolve(id?: string) {
     if (!this.endpoints.length) return undefined;
@@ -23,7 +23,7 @@ export class EgressRouter {
   }
 
   static fromEnvironment(): EgressRouter {
-    const raw = import.meta.env.VITE_AURA_EGRESS_ENDPOINTS;
+    const raw = import.meta.env["VITE_AURA_EGRESS_ENDPOINTS"];
     if (!raw) return new EgressRouter();
     try {
       const parsed = JSON.parse(raw) as EgressEndpoint[];
