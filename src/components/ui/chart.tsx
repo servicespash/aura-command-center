@@ -104,6 +104,7 @@ const ChartTooltip = RechartsPrimitive.Tooltip;
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
+      active?: boolean;
       payload?: ChartPayloadItem[];
       label?: string | number;
       labelFormatter?: (value: unknown, payload: ChartPayloadItem[]) => React.ReactNode;
@@ -113,6 +114,8 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed";
       nameKey?: string;
       labelKey?: string;
+      labelClassName?: string;
+      color?: string;
     }
 >(
   (
