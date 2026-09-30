@@ -7,6 +7,8 @@ import { useTelemetryStore } from "@/store/telemetryStore";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { ThreatHeatmap } from "./ThreatHeatmap";
 
+type TelemetryFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>;
+
 type Props = {
   zoom: number;
   viewMode: string;
@@ -64,7 +66,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
       mapInstance.addSource("aviation-telemetry", {
         type: "geojson",
-        data: initialData,
+        data: initialData as TelemetryFeatureCollection,
         cluster: false,
       });
 
@@ -111,7 +113,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
           currentBounds.getNorth(),
         );
         (mapInstance.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(
-          filteredData,
+          filteredData as TelemetryFeatureCollection,
         );
       };
 
@@ -143,7 +145,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
   useEffect(() => {
     if (map && map.getSource("threat-intel")) {
-      const geojson = {
+      const geojson: TelemetryFeatureCollection = {
         type: "FeatureCollection",
         features: events.map((e) => ({
           type: "Feature",
