@@ -24,7 +24,6 @@ import { useTelemetryStore } from "@/store/telemetryStore";
 import { ThreatPanel } from "./ThreatPanel";
 import { TenantsPanel } from "./TenantsPanel";
 import { FlightFeedModule } from "./FlightFeedModule";
-import { LiveFlightFeed } from "./LiveFlightFeed";
 
 type MobilePanel = "threats" | "tenants" | "terminal";
 
@@ -187,12 +186,13 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   const [renderKey, setRenderKey] = useState(0);
   const [panelsMinimized, setPanelsMinimized] = useState(window.innerWidth < 768);
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  const egressRouter = useMemo(() => EgressRouter.fromEnvironment(), []);
 
   useEffect(() => {
     setPortalRoot(document.getElementById("map-portal-root"));
     const handleResize = () => setPanelsMinimized(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Global Key Listeners
@@ -245,7 +245,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   }, []);
   const setEgressIndex = useTelemetryStore((state) => state.setEgressIndex);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("threats");
-  const [desktopPanel, setDesktopPanel] = useState<Exclude<MobilePanel, "terminal">>("threats");
+  const [desktopPanel, setDesktopPanel] = useState<"threats" | "tenants" | "flights">("threats");
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const critical = events.filter((event) => event.severity === "critical").length;
 
@@ -256,7 +256,6 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
 
   return (
     <main className="relative flex h-dvh w-screen flex-col overflow-hidden bg-transparent text-foreground">
-      <LiveFlightFeed />
       <ScanlineOverlay />
       <header className="z-50 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md md:h-16 md:px-4">
         <div className="flex min-w-0 items-center gap-3">
