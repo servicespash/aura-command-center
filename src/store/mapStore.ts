@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
+export type StreamTarget = { id?: string; lat: number; lon: number };
+
 interface MapState {
   flyToTarget: [number, number] | null;
   triggerFlyTo: (coords: [number, number]) => void;
-  streamTarget: unknown | null;
-  setStreamTarget: (target: unknown | null) => void;
+  streamTarget: StreamTarget | null;
+  setStreamTarget: (target: StreamTarget | null) => void;
 }
 
 export const useMapStore = create<MapState>((set) => ({
