@@ -1,4 +1,9 @@
-import { globalProviderRegistry, type AnyStrategy, type OIDCStrategy, type OAuth2Strategy } from "./providers";
+import {
+  globalProviderRegistry,
+  type AnyStrategy,
+  type OIDCStrategy,
+  type OAuth2Strategy,
+} from "./providers";
 
 type ProviderClaims = {
   provider: string;
@@ -31,11 +36,15 @@ async function hmac(value: string, secret: string): Promise<string> {
 }
 
 async function signedState(provider: string, secret: string): Promise<string> {
-  const payload = base64url(new TextEncoder().encode(JSON.stringify({
-    provider,
-    nonce: crypto.randomUUID(),
-    issuedAt: Date.now(),
-  })));
+  const payload = base64url(
+    new TextEncoder().encode(
+      JSON.stringify({
+        provider,
+        nonce: crypto.randomUUID(),
+        issuedAt: Date.now(),
+      }),
+    ),
+  );
   return `${payload}.${await hmac(payload, secret)}`;
 }
 
@@ -45,14 +54,22 @@ async function verifyState(state: string, secret: string): Promise<{ provider: s
   const expected = await hmac(payload, secret);
   if (expected.length !== signature.length) return null;
   let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++)
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   if (mismatch !== 0) return null;
 
-  const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload.replace(/-/g, "+").replace(/_/g, "/") + "=="), (c) => c.charCodeAt(0)))) as {
+  const parsed = JSON.parse(
+    new TextDecoder().decode(
+      Uint8Array.from(atob(payload.replace(/-/g, "+").replace(/_/g, "/") + "=="), (c) =>
+        c.charCodeAt(0),
+      ),
+    ),
+  ) as {
     provider?: string;
     issuedAt?: number;
   };
-  if (!parsed.provider || !parsed.issuedAt || Date.now() - parsed.issuedAt > 10 * 60_000) return null;
+  if (!parsed.provider || !parsed.issuedAt || Date.now() - parsed.issuedAt > 10 * 60_000)
+    return null;
   return { provider: parsed.provider };
 }
 
@@ -68,7 +85,10 @@ export async function createAuthorizationUrl(
   if (!stateSecret) throw new Error("AURA_AUTH_STATE_SECRET is not configured");
 
   const state = await signedState(providerId, stateSecret);
-  const clientId = env(envVars, `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`);
+  const clientId = env(
+    envVars,
+    `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`,
+  );
   if (!clientId) throw new Error(`Authentication provider ${providerId} is not configured`);
 
   if (strategy.type === "OIDC") {
@@ -89,7 +109,10 @@ export async function createAuthorizationUrl(
     url.searchParams.set("client_id", clientId);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", providerId === "github" ? "read:user user:email" : "openid profile email");
+    url.searchParams.set(
+      "scope",
+      providerId === "github" ? "read:user user:email" : "openid profile email",
+    );
     url.searchParams.set("state", state);
     return { url: url.toString(), state };
   }
@@ -108,9 +131,16 @@ export async function exchangeCallback(
     throw new Error("Unsupported callback provider");
   }
 
-  const clientId = env(envVars, `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`);
-  const clientSecret = env(envVars, `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_SECRET`);
-  if (!clientId || !clientSecret) throw new Error("Authentication provider credentials are not configured");
+  const clientId = env(
+    envVars,
+    `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`,
+  );
+  const clientSecret = env(
+    envVars,
+    `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_SECRET`,
+  );
+  if (!clientId || !clientSecret)
+    throw new Error("Authentication provider credentials are not configured");
 
   let tokenEndpoint = "";
   let userInfoEndpoint = "";
@@ -167,15 +197,23 @@ export async function verifyOAuthState(state: string, envVars: Record<string, un
   return verifyState(state, secret);
 }
 
-export async function createSessionCookie(claims: ProviderClaims, envVars: Record<string, unknown>) {
+export async function createSessionCookie(
+  claims: ProviderClaims,
+  envVars: Record<string, unknown>,
+) {
   const secret = env(envVars, "AURA_SESSION_SIGNING_KEY");
   if (!secret) throw new Error("AURA_SESSION_SIGNING_KEY is not configured");
-  const payload = base64url(new TextEncoder().encode(JSON.stringify({ ...claims, issuedAt: Date.now() })));
+  const payload = base64url(
+    new TextEncoder().encode(JSON.stringify({ ...claims, issuedAt: Date.now() })),
+  );
   const signature = await hmac(payload, secret);
   return `aura_session=${payload}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`;
 }
 
-export async function verifySessionCookie(cookieValue: string, envVars: Record<string, unknown>): Promise<ProviderClaims | null> {
+export async function verifySessionCookie(
+  cookieValue: string,
+  envVars: Record<string, unknown>,
+): Promise<ProviderClaims | null> {
   const secret = env(envVars, "AURA_SESSION_SIGNING_KEY");
   if (!secret) throw new Error("AURA_SESSION_SIGNING_KEY is not configured");
   const [payload, signature] = cookieValue.split(".");
@@ -183,15 +221,15 @@ export async function verifySessionCookie(cookieValue: string, envVars: Record<s
   const expected = await hmac(payload, secret);
   if (expected.length !== signature.length) return null;
   let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++)
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   if (mismatch !== 0) return null;
 
-  const padded = payload.replace(/-/g, "+").replace(/_/g, "/") + "==".slice((payload.length + 2) % 4);
+  const padded =
+    payload.replace(/-/g, "+").replace(/_/g, "/") + "==".slice((payload.length + 2) % 4);
   try {
     const claims = JSON.parse(
-      new TextDecoder().decode(
-        Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)),
-      ),
+      new TextDecoder().decode(Uint8Array.from(atob(padded), (char) => char.charCodeAt(0))),
     ) as ProviderClaims & { issuedAt?: number };
     if (!claims.provider || !claims.subject || !claims.issuedAt) return null;
     if (Date.now() - claims.issuedAt > 8 * 60 * 60_000) return null;

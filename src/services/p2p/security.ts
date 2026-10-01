@@ -15,7 +15,13 @@ function b64urlDecode(value: string): Uint8Array {
 }
 
 async function sign(value: string, secret: string): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   return b64urlEncode(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value))));
 }
 
@@ -23,7 +29,8 @@ async function validSignature(value: string, signature: string, secret: string):
   const expected = await sign(value, secret);
   if (expected.length !== signature.length) return false;
   let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++)
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return mismatch === 0;
 }
 
@@ -37,12 +44,16 @@ export async function issueP2PToken(
   claims: { provider: string; subject: string },
   env: Record<string, unknown>,
 ): Promise<string> {
-  const payload = b64urlEncode(encoder.encode(JSON.stringify({
-    sub: claims.subject,
-    provider: claims.provider,
-    exp: Date.now() + 5 * 60_000,
-    tokenId: crypto.randomUUID(),
-  })));
+  const payload = b64urlEncode(
+    encoder.encode(
+      JSON.stringify({
+        sub: claims.subject,
+        provider: claims.provider,
+        exp: Date.now() + 5 * 60_000,
+        tokenId: crypto.randomUUID(),
+      }),
+    ),
+  );
   return `${payload}.${await sign(payload, secret(env))}`;
 }
 
@@ -51,7 +62,8 @@ export async function authenticateP2PToken(
   env: Record<string, unknown>,
 ): Promise<{ sub: string; provider: string; exp: number; tokenId: string } | null> {
   const [payload, signature] = token.split(".");
-  if (!payload || !signature || !(await validSignature(payload, signature, secret(env)))) return null;
+  if (!payload || !signature || !(await validSignature(payload, signature, secret(env))))
+    return null;
   try {
     const claims = JSON.parse(decoder.decode(b64urlDecode(payload))) as {
       sub?: string;
@@ -59,7 +71,14 @@ export async function authenticateP2PToken(
       exp?: number;
       tokenId?: string;
     };
-    if (!claims.sub || !claims.provider || !claims.exp || !claims.tokenId || claims.exp <= Date.now()) return null;
+    if (
+      !claims.sub ||
+      !claims.provider ||
+      !claims.exp ||
+      !claims.tokenId ||
+      claims.exp <= Date.now()
+    )
+      return null;
     return claims as { sub: string; provider: string; exp: number; tokenId: string };
   } catch {
     return null;
@@ -68,7 +87,10 @@ export async function authenticateP2PToken(
 
 export async function authenticateSessionRequest(request: Request, env: Record<string, unknown>) {
   const header = request.headers.get("cookie") ?? "";
-  const value = header.split(";").map((part) => part.trim()).find((part) => part.startsWith("aura_session="));
+  const value = header
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("aura_session="));
   if (!value) return null;
   return verifySessionCookie(decodeURIComponent(value.slice("aura_session=".length)), env);
 }

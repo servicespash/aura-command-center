@@ -19,7 +19,9 @@ type Props = {
 
 export function MapLibreCanvas({ zoom, viewMode }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const pulseFeatures = useRef<Record<string, GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>>>({});
+  const pulseFeatures = useRef<
+    Record<string, GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>>
+  >({});
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const { setStreamTarget } = useMapStore();
   const events = useTelemetryStore((state) => state.events);

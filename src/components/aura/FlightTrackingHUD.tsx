@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchPublicFlightRecords, type PublicFlightRecord } from "@/services/aviation/publicFlightRecords";
+import {
+  fetchPublicFlightRecords,
+  type PublicFlightRecord,
+} from "@/services/aviation/publicFlightRecords";
 import { useMapStore } from "@/store/mapStore";
 
 export function FlightTrackingHUD() {
@@ -18,7 +21,8 @@ export function FlightTrackingHUD() {
           setError(null);
         }
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : "Public flight source unavailable");
+        if (active)
+          setError(cause instanceof Error ? cause.message : "Public flight source unavailable");
       }
     };
 
@@ -61,10 +65,22 @@ export function FlightTrackingHUD() {
           </div>
           <div>ICAO: {flight.icao24}</div>
           <div>ORIGIN: {flight.originCountry || "unknown"}</div>
-          <div>POS: {flight.latitude.toFixed(4)}, {flight.longitude.toFixed(4)}</div>
-          <div>ALT: {flight.baroAltitudeM === null ? "unknown" : `${Math.round(flight.baroAltitudeM)} m`}</div>
-          <div>SPD: {flight.velocityMps === null ? "unknown" : `${Math.round(flight.velocityMps * 1.94384)} kt`}</div>
-          <div>HDG: {flight.headingDeg === null ? "unknown" : `${Math.round(flight.headingDeg)}°`}</div>
+          <div>
+            POS: {flight.latitude.toFixed(4)}, {flight.longitude.toFixed(4)}
+          </div>
+          <div>
+            ALT:{" "}
+            {flight.baroAltitudeM === null ? "unknown" : `${Math.round(flight.baroAltitudeM)} m`}
+          </div>
+          <div>
+            SPD:{" "}
+            {flight.velocityMps === null
+              ? "unknown"
+              : `${Math.round(flight.velocityMps * 1.94384)} kt`}
+          </div>
+          <div>
+            HDG: {flight.headingDeg === null ? "unknown" : `${Math.round(flight.headingDeg)}°`}
+          </div>
           <div>SOURCE: PUBLIC ADS-B · OpenSky</div>
         </button>
       ))}

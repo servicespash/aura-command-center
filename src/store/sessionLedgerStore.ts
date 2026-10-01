@@ -31,30 +31,37 @@ export const useSessionLedgerStore = create<SessionLedgerState>((set) => ({
   heartbeats: {},
   sessions: {},
   nodes: {},
-  recordHeartbeat: (heartbeat) => set((state) => ({
-    heartbeats: { ...state.heartbeats, [heartbeat.agentId]: heartbeat },
-  })),
-  setSession: (sessionId, token, expiresAt) => set((state) => ({
-    sessions: { ...state.sessions, [sessionId]: { token, expiresAt } },
-  })),
-  revokeSession: (sessionId) => set((state) => {
-    const sessions = { ...state.sessions };
-    delete sessions[sessionId];
-    return { sessions };
-  }),
-  setNode: (node) => set((state) => ({
-    nodes: { ...state.nodes, [node.nodeId]: node },
-  })),
-  prune: (now = Date.now()) => set((state) => ({
-    heartbeats: Object.fromEntries(
-      Object.entries(state.heartbeats).filter(([, value]) => now - value.observedAt <= HEARTBEAT_TTL_MS),
-    ),
-    sessions: Object.fromEntries(
-      Object.entries(state.sessions).filter(([, value]) => value.expiresAt > now),
-    ),
-    nodes: Object.fromEntries(
-      Object.entries(state.nodes).filter(([, value]) => now - value.lastSeen <= HEARTBEAT_TTL_MS),
-    ),
-  })),
+  recordHeartbeat: (heartbeat) =>
+    set((state) => ({
+      heartbeats: { ...state.heartbeats, [heartbeat.agentId]: heartbeat },
+    })),
+  setSession: (sessionId, token, expiresAt) =>
+    set((state) => ({
+      sessions: { ...state.sessions, [sessionId]: { token, expiresAt } },
+    })),
+  revokeSession: (sessionId) =>
+    set((state) => {
+      const sessions = { ...state.sessions };
+      delete sessions[sessionId];
+      return { sessions };
+    }),
+  setNode: (node) =>
+    set((state) => ({
+      nodes: { ...state.nodes, [node.nodeId]: node },
+    })),
+  prune: (now = Date.now()) =>
+    set((state) => ({
+      heartbeats: Object.fromEntries(
+        Object.entries(state.heartbeats).filter(
+          ([, value]) => now - value.observedAt <= HEARTBEAT_TTL_MS,
+        ),
+      ),
+      sessions: Object.fromEntries(
+        Object.entries(state.sessions).filter(([, value]) => value.expiresAt > now),
+      ),
+      nodes: Object.fromEntries(
+        Object.entries(state.nodes).filter(([, value]) => now - value.lastSeen <= HEARTBEAT_TTL_MS),
+      ),
+    })),
   clear: () => set({ heartbeats: {}, sessions: {}, nodes: {} }),
 }));

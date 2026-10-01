@@ -132,7 +132,8 @@ export class P2PSignalingPeer {
     };
 
     this.stopReceiving = this.transport.receive((message) => {
-      if (message.room === this.room && message.from !== this.peerId) void this.handleSignal(message);
+      if (message.room === this.room && message.from !== this.peerId)
+        void this.handleSignal(message);
     });
   }
 

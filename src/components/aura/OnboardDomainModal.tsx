@@ -20,7 +20,9 @@ export function OnboardDomainModal({
   const [domain, setDomain] = useState("");
   const [token, setToken] = useState("");
   const [key, setKey] = useState("");
-  const [status, setStatus] = useState<"idle" | "checking" | "pending" | "verified" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "checking" | "pending" | "verified" | "error">(
+    "idle",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
@@ -113,11 +115,14 @@ export function OnboardDomainModal({
                 <div className="mt-1 break-all text-foreground">{token}</div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Verification performs a real DNS TXT lookup. No domain is marked verified merely because this button was pressed.
+                Verification performs a real DNS TXT lookup. No domain is marked verified merely
+                because this button was pressed.
               </p>
               {error && <p className="text-xs text-destructive">{error}</p>}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Back
+                </Button>
                 <Button onClick={verify} disabled={status === "checking"}>
                   {status === "checking" ? "Checking DNS…" : "Verify DNS"}
                 </Button>

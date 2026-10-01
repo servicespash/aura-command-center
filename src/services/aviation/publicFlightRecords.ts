@@ -64,7 +64,7 @@ export async function fetchPublicFlightRecords(bounds?: {
         headingDeg: finite(state[10]),
         verticalRateMps: finite(state[11]),
         onGround: state[8] === true,
-        lastContactUnix: typeof state[4] === "number" ? state[4] : payload.time ?? 0,
+        lastContactUnix: typeof state[4] === "number" ? state[4] : (payload.time ?? 0),
         source: "opensky",
       };
     })

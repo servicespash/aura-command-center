@@ -1,9 +1,19 @@
 import { useState } from "react";
 type Stage = 0 | 1 | 2;
 const STAGES = [
-  { label: "Identity assertion", hint: "Configured account email", placeholder: "operator@domain", type: "email" },
+  {
+    label: "Identity assertion",
+    hint: "Configured account email",
+    placeholder: "operator@domain",
+    type: "email",
+  },
   { label: "Authenticator", hint: "6-digit TOTP code", placeholder: "••••••", type: "text" },
-  { label: "Session key", hint: "Server-side session key", placeholder: "••••••••••", type: "password" },
+  {
+    label: "Session key",
+    hint: "Server-side session key",
+    placeholder: "••••••••••",
+    type: "password",
+  },
 ] as const;
 
 const PROVIDERS = [
@@ -103,13 +113,17 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
           </div>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
-            <label className="label-hud" htmlFor="factor">{current.label}</label>
+            <label className="label-hud" htmlFor="factor">
+              {current.label}
+            </label>
             <input
               id="factor"
               type={current.type}
               autoComplete="off"
               value={values[stage]}
-              onChange={(e) => setValues((old) => old.map((v, i) => (i === stage ? e.target.value : v)))}
+              onChange={(e) =>
+                setValues((old) => old.map((v, i) => (i === stage ? e.target.value : v)))
+              }
               placeholder={current.placeholder}
               className="mt-2 w-full rounded border border-input bg-background/70 px-3 py-2.5 font-mono text-sm text-foreground outline-none"
             />
