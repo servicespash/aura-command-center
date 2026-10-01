@@ -15,6 +15,7 @@ import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as ApiOnboardingDomainVerifyRouteImport } from './routes/api/onboarding/domain/verify'
 import { Route as ApiP2pSignalRouteImport } from './routes/api/p2p/signal'
+import { Route as ApiP2pTokenRouteImport } from './routes/api/p2p/token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,12 @@ const ApiOnboardingDomainVerifyRoute = ApiOnboardingDomainVerifyRouteImport.upda
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const ApiP2pTokenRoute = ApiP2pTokenRouteImport.update({
+  id: '/api/p2p/token',
+  path: '/api/p2p/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 const ApiP2pSignalRoute = ApiP2pSignalRouteImport.update({
   id: '/api/p2p/signal',
   path: '/api/p2p/signal',
@@ -59,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/verify': typeof ApiAuthVerifyRoute
   '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
   '/api/p2p/signal': typeof ApiP2pSignalRoute
+  '/api/p2p/token': typeof ApiP2pTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,11 +83,11 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal'
+  fullPaths: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
   fileRoutesByTo: FileRoutesByTo
   fileRoutesById: FileRoutesById
-  to: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal'
-  id: '__root__' | '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal'
+  to: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
+  id: '__root__' | '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
@@ -88,6 +96,7 @@ export interface RootRouteChildren {
   ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
   ApiOnboardingDomainVerifyRoute: typeof ApiOnboardingDomainVerifyRoute
   ApiP2pSignalRoute: typeof ApiP2pSignalRoute
+  ApiP2pTokenRoute: typeof ApiP2pTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -127,6 +136,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOnboardingDomainVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/p2p/token': {
+      id: '/api/p2p/token'
+      path: '/api/p2p/token'
+      fullPath: '/api/p2p/token'
+      preLoaderRoute: typeof ApiP2pTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/p2p/signal': {
       id: '/api/p2p/signal'
       path: '/api/p2p/signal'
@@ -144,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthVerifyRoute: ApiAuthVerifyRoute,
   ApiOnboardingDomainVerifyRoute: ApiOnboardingDomainVerifyRoute,
   ApiP2pSignalRoute: ApiP2pSignalRoute,
+  ApiP2pTokenRoute: ApiP2pTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
