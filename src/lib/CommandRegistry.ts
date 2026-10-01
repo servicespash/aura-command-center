@@ -4,7 +4,7 @@ import { StorageService } from "./StorageService";
 import { MMDBReader } from "@/services/spatial/mmdbReader";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { PanicService } from "@/services/security/panicService";
-import { globalP2PMesh } from "@/engine/network/p2p";
+import { agentProbe } from "@/services/runtime/agentClient";
 
 export interface CommandDefinition {
   name: string;
@@ -20,10 +20,10 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   help: {
     name: "help",
     requiredPkg: "built-in",
-    description: "Displays complete CLI command table or detailed manual for a specific command.",
-    execute: (args, setResponse) => {
+    description: "Displays the registered CLI commands and their execution requirements.",
+    execute: (_args, setResponse) => {
       setResponse(
-        `[SYSTEM] Listing 20 registered CLI commands...\n` +
+        `[SYSTEM] Registered CLI commands...\n` +
           Object.values(COMMAND_REGISTRY)
             .map((c) => `${c.name.padEnd(12)} [${c.requiredPkg}] - ${c.description}`)
             .join("\n"),
@@ -33,189 +33,226 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   scan: {
     name: "scan",
     requiredPkg: "net-analyzer-v2",
-    description: "Runs perimeter security scans on target domain/IP and computes Threat Score.",
-    execute: (args, setResponse) => {
-      const target = args["target"] || "unknown-target";
-      setResponse(
-        "[SCAN] Browser runtime cannot perform an authorized perimeter scan. Configure the AURA runtime agent.",
-      );
+    description: "Performs an allowlisted HTTP reachability probe through the AURA runtime agent.",
+    execute: async (args, setResponse) => {
+      const target = String(args["target"] || "").trim();
+      if (!target) {
+        setResponse("[SCAN] Target is required.");
+        return;
+      }
+
+      try {
+        const url = /^https?:\/\//i.test(target) ? target : `https://${target}`;
+        const result = await agentProbe({ operation: "http", url, method: "HEAD" });
+        const data = result.data ?? {};
+        setResponse(
+          `[SCAN] ${result.target} | HTTP ${String(data["status"] ?? "unknown")} | ${result.durationMs}ms | server=${String(data["server"] ?? "unknown")}`,
+        );
+      } catch (error) {
+        setResponse(`[SCAN] Failed: ${error instanceof Error ? error.message : "probe failed"}`);
+      }
     },
   },
   find: {
     name: "find",
     requiredPkg: "geoip-locator",
-    description: "Resolves GeoIP coordinates and auto-zooms 3D Globe map with a pulsing indicator.",
+    description: "Resolves an IP through the configured live GeoIP provider and centers the map.",
     execute: async (args, setResponse) => {
-      const ip = (args["ip"] as string) || "unknown";
+      const ip = String(args["ip"] || "").trim();
+      if (!ip) {
+        setResponse("[MAP] IP address is required.");
+        return;
+      }
 
-      const result = await MMDBReader.resolve(ip);
-      // Optional: hide terminal when executing a find
-      globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
-
-      setResponse(
-        `[MAP] Target IP ${ip} mapped to Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}...`,
-      );
+      try {
+        const result = await MMDBReader.resolve(ip);
+        globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
+        setResponse(
+          `[MAP] ${result.ip} | ${result.city}, ${result.country} | Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}`,
+        );
+      } catch (error) {
+        setResponse(`[MAP] Lookup failed: ${error instanceof Error ? error.message : "lookup failed"}`);
+      }
     },
   },
   login: {
     name: "login",
     requiredPkg: "auth-bridge",
-    description: "Prompts credentials or triggers browser redirect to target login gateway.",
+    description: "Opens a user-supplied external login gateway.",
     execute: (args, setResponse) => {
-      const target = (args["target"] as string) || (args["url"] as string) || "github";
-      const url = target.startsWith("http") ? target : `https://${target}.com/login`;
-      setResponse(`[AUTH] Redirecting to external gateway: ${url}...`);
-      window.open(url, "_blank");
+      const target = (args["target"] as string) || (args["url"] as string);
+      if (!target) {
+        setResponse("[AUTH] Target URL is required.");
+        return;
+      }
+      const url = /^https?:\/\//i.test(target) ? target : `https://${target}.com/login`;
+      setResponse(`[AUTH] Opening external gateway: ${url}`);
+      window.open(url, "_blank", "noopener,noreferrer");
     },
   },
   "db-connect": {
     name: "db-connect",
     requiredPkg: "db-client-suite",
-    description: "Prompts for DB credentials to mount a mock remote database terminal context.",
+    description: "Reports database connectivity status; browser-side PostgreSQL sessions are not supported.",
     execute: (args, setResponse) => {
-      const target = (args["target"] as string) || "local";
-      setResponse(`[DB] Connected to PostgreSQL instance @ ${target}.db.internal`);
+      const target = String(args["target"] || "").trim();
+      setResponse(
+        target
+          ? `[DB] Direct PostgreSQL connection is unavailable in the browser. Configure a server-side database connector for ${target}.`
+          : "[DB] Target is required. No database connector is configured.",
+      );
     },
   },
   egress: {
     name: "egress",
     requiredPkg: "proxy-cycler",
-    description: "Cycles active outbound proxies or displays status.",
+    description: "Displays configured outbound egress endpoints.",
     execute: (args, setResponse) => {
-      if (args["cycle"] || args["status"]) {
-        const router = EgressRouter.fromEnvironment();
-        const endpoint = router.resolve();
-        setResponse(
-          endpoint
-            ? `[EGRESS] Configured endpoint: ${endpoint.id} | ${endpoint.url}`
-            : "[EGRESS] No configured egress endpoints.",
-        );
-      } else {
+      if (!args["cycle"] && !args["status"]) {
         setResponse("[ERROR] Missing flag --cycle or --status");
+        return;
       }
+      const router = EgressRouter.fromEnvironment();
+      const endpoints = router.list();
+      setResponse(
+        endpoints.length
+          ? endpoints.map((e) => `[EGRESS] ${e.id} | ${e.protocol} | ${e.url}`).join("\n")
+          : "[EGRESS] No configured egress endpoints.",
+      );
     },
   },
   onboard: {
     name: "onboard",
     requiredPkg: "tenant-manager",
-    description: "Initiates tenant onboarding flow and generates isolated telemetry key.",
+    description: "Creates a pending tenant record with a cryptographically random local telemetry key.",
     execute: (args, setResponse) => {
-      const domain = (args["domain"] as string) || "new-tenant.com";
-      const key = `tk_live_${Math.random().toString(36).substring(2, 10)}`;
+      const domain = String(args["domain"] || "").trim();
+      if (!domain) {
+        setResponse("[TENANT] Domain is required.");
+        return;
+      }
+      const key = `tk_live_${crypto.randomUUID().replace(/-/g, "")}`;
       useTelemetryStore.getState().addTenant({
         domain,
         method: "api",
         key,
-        status: "verified",
+        status: "pending",
         events24h: 0,
       });
-      setResponse(`[TENANT] Domain verified. Issued Telemetry Key: ${key}`);
+      setResponse(`[TENANT] Created pending tenant ${domain}. Ownership verification is required before activation.`);
     },
   },
   tenants: {
     name: "tenants",
     requiredPkg: "tenant-manager",
-    description: "Displays all onboarded domain tenants and active key statuses.",
-    execute: (args, setResponse) => {
+    description: "Displays the number of locally persisted tenant records.",
+    execute: (_args, setResponse) => {
       const tenants = useTelemetryStore.getState().tenants;
-      setResponse(`[TENANTS] Active Tenants: ${tenants.length} domain instances monitored.`);
+      setResponse(`[TENANTS] ${tenants.length} tenant records stored locally.`);
     },
   },
   threats: {
     name: "threats",
     requiredPkg: "telemetry-core",
-    description: "Filters active global threat feeds by severity rating.",
+    description: "Filters ingested threat events by severity.",
     execute: (args, setResponse) => {
-      const level = (args["level"] as string) || "high";
-      const events = useTelemetryStore
-        .getState()
-        .events.filter(
-          (e) =>
-            (level === "high" && e.severity === "critical") ||
-            (level === "med" && e.severity === "elevated") ||
-            (level === "low" && e.severity === "clear"),
-        );
-      setResponse(
-        `[FEED] Filter applied: ${level.toUpperCase()} severity (${events.length} events active)`,
+      const level = String(args["level"] || "high");
+      const events = useTelemetryStore.getState().events.filter(
+        (e) =>
+          (level === "high" && e.severity === "critical") ||
+          (level === "med" && e.severity === "elevated") ||
+          (level === "low" && e.severity === "clear"),
       );
+      setResponse(`[FEED] ${level.toUpperCase()} severity: ${events.length} ingested events.`);
     },
   },
   archive: {
     name: "archive",
     requiredPkg: "indexeddb-dal",
-    description: "Flushes or views active terminal event buffers into/from storage.",
+    description: "Archives or reads persisted telemetry records.",
     execute: async (args, setResponse) => {
       if (args["export"]) {
         const events = useTelemetryStore.getState().events;
         await StorageService.archiveEvents(events);
-        setResponse(`[DAL] Saved ${events.length} incident logs to IndexedDB partition.`);
+        setResponse(`[DAL] Saved ${events.length} incident logs to IndexedDB.`);
       } else if (args["view"]) {
         const archived = await StorageService.getArchivedEvents();
-        setResponse(`[DAL] Historical archives: ${archived.length} events found in storage.`);
+        setResponse(`[DAL] Historical archive contains ${archived.length} events.`);
       } else {
-        setResponse(`[ERROR] Missing flag --export or --view`);
+        setResponse("[ERROR] Missing flag --export or --view");
       }
     },
   },
   delete: {
     name: "delete",
     requiredPkg: "indexeddb-dal",
-    description: "Permanently purges a specific telemetry log record from local storage.",
+    description: "Permanently deletes an archived telemetry record by ID.",
     execute: async (args, setResponse) => {
-      const id = (args["log"] as string) || "unknown";
-      const success = await StorageService.deleteArchivedEvent(id);
-      if (success) {
-        setResponse(`[DAL] Log record #${id} successfully purged.`);
-      } else {
-        setResponse(`[ERROR] Log record #${id} not found in archive.`);
+      const id = String(args["log"] || "").trim();
+      if (!id) {
+        setResponse("[DAL] Log ID is required.");
+        return;
       }
+      const success = await StorageService.deleteArchivedEvent(id);
+      setResponse(success ? `[DAL] Deleted archived log #${id}.` : `[DAL] Log #${id} was not found.`);
     },
   },
   search: {
     name: "search",
     requiredPkg: "indexeddb-dal",
-    description: "Searches global event logs for matching IP, domain, or timestamp strings.",
+    description: "Searches archived event records.",
     execute: async (args, setResponse) => {
-      const query = (args["query"] as string) || "";
+      const query = String(args["query"] || "").trim().toLowerCase();
+      if (!query) {
+        setResponse("[SEARCH] Query is required.");
+        return;
+      }
       const archived = await StorageService.getArchivedEvents();
       const matches = archived.filter(
-        (e) => e.ip.includes(query) || e.subdomain.includes(query) || e.nodeId.includes(query),
+        (e) =>
+          e.ip.toLowerCase().includes(query) ||
+          e.subdomain.toLowerCase().includes(query) ||
+          e.nodeId.toLowerCase().includes(query),
       );
-      setResponse(`[SEARCH] Found ${matches.length} matching entries for query '${query}'.`);
+      setResponse(`[SEARCH] Found ${matches.length} archived entries for '${query}'.`);
     },
   },
   clear: {
     name: "clear",
     requiredPkg: "built-in",
-    description: "Clears current terminal display screen buffer.",
-    execute: () => {
-      // Handled in component
-    },
+    description: "Clears the terminal display buffer.",
+    execute: () => {},
   },
   ping: {
     name: "ping",
     requiredPkg: "net-analyzer-v2",
-    description: "Measures latency and packet response metrics to target hosts.",
+    description: "Performs an allowlisted TCP reachability probe through the AURA runtime agent.",
     execute: async (args, setResponse) => {
       const host = String(args["host"] || "").trim();
       if (!host) {
         setResponse("[PING] Host is required.");
         return;
       }
-      setResponse(
-        "[PING] Use the configured AURA runtime agent for an actual TCP/ICMP measurement.",
-      );
+      try {
+        const result = await agentProbe({ operation: "tcp", host, port: 443, timeoutMs: 5000 });
+        const data = result.data ?? {};
+        setResponse(
+          `[PING] ${host}:443 | reachable=${String(data["reachable"] ?? false)} | ${String(data["latencyMs"] ?? result.durationMs)}ms`,
+        );
+      } catch (error) {
+        setResponse(`[PING] Failed: ${error instanceof Error ? error.message : "probe failed"}`);
+      }
     },
   },
   traceroute: {
     name: "traceroute",
     requiredPkg: "net-analyzer-v2",
-    description: "Traces simulated network hops across ghost proxy nodes.",
+    description: "Requires a native traceroute-capable runtime agent; no synthetic hops are generated.",
     execute: (args, setResponse) => {
       const target = String(args["target"] || "").trim();
       setResponse(
         target
-          ? "[TRACE] Native traceroute is unavailable in the browser; agent integration required."
+          ? "[TRACE] Native traceroute is not exposed by the current runtime agent. No synthetic hops generated."
           : "[TRACE] Target is required.",
       );
     },
@@ -223,67 +260,52 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   theme: {
     name: "theme",
     requiredPkg: "built-in",
-    description: "Forces manual visual themes (standard green, stealth amber, or alert red CRT).",
+    description: "Changes the local command-center visual theme.",
     execute: (args, setResponse) => {
-      const mode = (args["mode"] as "default" | "stealth" | "alert") || "default";
+      const mode = String(args["mode"] || "default") as "default" | "stealth" | "alert";
       if (["default", "stealth", "alert"].includes(mode)) {
         useTelemetryStore.getState().setTheme(mode);
-        setResponse(`[THEME] Visual mode updated to '${mode}'`);
+        setResponse(`[THEME] Visual mode updated to '${mode}'.`);
       } else {
-        setResponse(`[ERROR] Invalid theme mode. Use default, stealth, or alert.`);
+        setResponse("[ERROR] Invalid theme mode. Use default, stealth, or alert.");
       }
     },
   },
   audio: {
     name: "audio",
     requiredPkg: "audio-engine",
-    description: "Toggles WebAudio engine ambient sound effects and keystroke ticks.",
-    execute: (args, setResponse) => {
+    description: "Toggles the local WebAudio engine.",
+    execute: (_args, setResponse) => {
       useTelemetryStore.getState().toggleAudio();
       const state = useTelemetryStore.getState().audioEnabled;
-      setResponse(`[AUDIO] Sound Engine state: ${state ? "ACTIVE" : "MUTED"}`);
+      setResponse(`[AUDIO] Sound engine: ${state ? "ACTIVE" : "MUTED"}`);
     },
   },
   pkg: {
     name: "pkg",
     requiredPkg: "built-in",
-    description: "Installs missing CLI package dependencies into the local package store.",
+    description: "Registers a package in the local package state.",
     execute: async (args, setResponse) => {
-      // This will be partially handled in component for animation, but this is the fallback logic.
-      const posArg = args["pos_1"];
-      if (posArg === "install" && args["pos_2"]) {
-        const pkg = args["pos_2"] as string;
+      if (args["pos_1"] === "install" && args["pos_2"]) {
+        const pkg = String(args["pos_2"]);
         useTelemetryStore.getState().installPackage(pkg);
-        setResponse(`[PKG] Installed dependency '${pkg}'.`);
+        setResponse(`[PKG] Registered dependency '${pkg}'.`);
       } else {
-        setResponse(`[ERROR] Usage: pkg install <package_name>`);
+        setResponse("[ERROR] Usage: pkg install <package_name>");
       }
     },
   },
   panic: {
     name: "panic",
     requiredPkg: "built-in",
-    description: "Fail-safe: Instant purge of all local storage and RAM state.",
+    description: "Purges configured local telemetry state.",
     execute: async (args, setResponse) => {
       if (args["purge"] && args["confirm"]) {
         await PanicService.execute();
-        setResponse(`[PANIC] Emergency purge successful.`);
+        setResponse("[PANIC] Local purge completed.");
       } else {
-        setResponse(`[ERROR] Missing flags: --purge --confirm`);
+        setResponse("[ERROR] Missing flags: --purge --confirm");
       }
-    },
-  },
-  msg: {
-    name: "msg",
-    requiredPkg: "p2p-mesh",
-    description: "Sends an end-to-end encrypted message to an active node via P2P mesh socket.",
-    execute: async (args, setResponse) => {
-      const target = (args["pos_1"] as string) || "broadcast";
-      const message = (args["pos_2"] as string) || "PING";
-
-      await globalP2PMesh.sendMessage(target, message);
-
-      setResponse(`[P2P] Encrypted payload dispatched to ${target}`);
     },
   },
 };
