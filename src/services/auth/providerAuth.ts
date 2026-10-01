@@ -172,4 +172,30 @@ export async function createSessionCookie(claims: ProviderClaims, envVars: Recor
   return `aura_session=${payload}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`;
 }
 
+export async function verifySessionCookie(cookieValue: string, envVars: Record<string, unknown>): Promise<ProviderClaims | null> {
+  const secret = env(envVars, "AURA_SESSION_SIGNING_KEY");
+  if (!secret) throw new Error("AURA_SESSION_SIGNING_KEY is not configured");
+  const [payload, signature] = cookieValue.split(".");
+  if (!payload || !signature) return null;
+  const expected = await hmac(payload, secret);
+  if (expected.length !== signature.length) return null;
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  if (mismatch !== 0) return null;
+
+  const padded = payload.replace(/-/g, "+").replace(/_/g, "/") + "==".slice((payload.length + 2) % 4);
+  try {
+    const claims = JSON.parse(
+      new TextDecoder().decode(
+        Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)),
+      ),
+    ) as ProviderClaims & { issuedAt?: number };
+    if (!claims.provider || !claims.subject || !claims.issuedAt) return null;
+    if (Date.now() - claims.issuedAt > 8 * 60 * 60_000) return null;
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
 export type { ProviderClaims };
