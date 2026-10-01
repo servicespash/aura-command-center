@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createSessionCookie, exchangeCallback, verifyOAuthState } from "@/services/auth/providerAuth";
+import {
+  createSessionCookie,
+  exchangeCallback,
+  verifyOAuthState,
+} from "@/services/auth/providerAuth";
 
 function cookie(request: Request, name: string): string | null {
   const header = request.headers.get("cookie") ?? "";
-  const match = header.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  const match = header
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 
@@ -18,7 +25,8 @@ export const Route = createFileRoute("/api/auth/callback")({
           if (!code || !state) throw new Error("Authorization callback is incomplete");
 
           const storedState = cookie(request, "aura_oauth_state");
-          if (!storedState || storedState !== state) throw new Error("Authorization state mismatch");
+          if (!storedState || storedState !== state)
+            throw new Error("Authorization state mismatch");
 
           const verified = await verifyOAuthState(state, context.env);
           if (!verified) throw new Error("Authorization state expired or invalid");
@@ -40,7 +48,10 @@ export const Route = createFileRoute("/api/auth/callback")({
           });
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : "Authentication callback failed";
-          return new Response(message, { status: 401, headers: { "content-type": "text/plain; charset=utf-8" } });
+          return new Response(message, {
+            status: 401,
+            headers: { "content-type": "text/plain; charset=utf-8" },
+          });
         }
       },
     },

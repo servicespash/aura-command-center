@@ -15,10 +15,12 @@ export const EvidenceObservationSchema = z.object({
     receivedAt: z.string().datetime({ offset: true }),
   }),
   score: z.number().min(0).max(100),
-  location: z.object({
-    lat: z.number().finite().min(-90).max(90),
-    lon: z.number().finite().min(-180).max(180),
-  }).optional(),
+  location: z
+    .object({
+      lat: z.number().finite().min(-90).max(90),
+      lon: z.number().finite().min(-180).max(180),
+    })
+    .optional(),
 });
 
 export type EvidenceObservation = z.infer<typeof EvidenceObservationSchema>;

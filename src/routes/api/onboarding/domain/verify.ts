@@ -9,14 +9,19 @@ export const Route = createFileRoute("/api/onboarding/domain/verify")({
     handlers: {
       POST: async ({ request }) => {
         const body = (await request.json()) as { domain?: string; token?: string };
-        const domain = String(body.domain ?? "").trim().toLowerCase();
+        const domain = String(body.domain ?? "")
+          .trim()
+          .toLowerCase();
         const token = String(body.token ?? "").trim();
 
         if (!/^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/.test(domain)) {
           return Response.json({ ok: false, error: "Invalid domain name" }, { status: 400 });
         }
         if (!token || token.length > 256) {
-          return Response.json({ ok: false, error: "Verification token is required" }, { status: 400 });
+          return Response.json(
+            { ok: false, error: "Verification token is required" },
+            { status: 400 },
+          );
         }
 
         const name = "_aura-verify." + domain;
@@ -29,7 +34,10 @@ export const Route = createFileRoute("/api/onboarding/domain/verify")({
           cache: "no-store",
         });
         if (!response.ok) {
-          return Response.json({ ok: false, error: "DNS verification service unavailable" }, { status: 502 });
+          return Response.json(
+            { ok: false, error: "DNS verification service unavailable" },
+            { status: 502 },
+          );
         }
 
         const payload = (await response.json()) as DnsResponse;

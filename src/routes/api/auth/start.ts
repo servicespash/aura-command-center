@@ -7,7 +7,8 @@ export const Route = createFileRoute("/api/auth/start")({
       GET: async ({ request, context }) => {
         try {
           const provider = new URL(request.url).searchParams.get("provider")?.trim().toLowerCase();
-          if (!provider) return Response.json({ ok: false, error: "Provider is required" }, { status: 400 });
+          if (!provider)
+            return Response.json({ ok: false, error: "Provider is required" }, { status: 400 });
           const redirectUri = new URL("/api/auth/callback", request.url).toString();
           const result = await createAuthorizationUrl(provider, redirectUri, context.env);
           return new Response(null, {
@@ -18,7 +19,13 @@ export const Route = createFileRoute("/api/auth/start")({
             },
           });
         } catch (cause) {
-          return Response.json({ ok: false, error: cause instanceof Error ? cause.message : "Authentication start failed" }, { status: 400 });
+          return Response.json(
+            {
+              ok: false,
+              error: cause instanceof Error ? cause.message : "Authentication start failed",
+            },
+            { status: 400 },
+          );
         }
       },
     },
