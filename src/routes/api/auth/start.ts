@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/auth/start")({
             status: 302,
             headers: {
               location: result.url,
-              "set-cookie": `aura_oauth_state=${result.state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+              "set-cookie": `aura_oauth_state=${result.state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600, aura_oauth_nonce=${result.browserNonce}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
             },
           });
         } catch (cause) {

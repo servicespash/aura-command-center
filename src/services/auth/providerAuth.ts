@@ -35,12 +35,16 @@ async function hmac(value: string, secret: string): Promise<string> {
   return base64url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
 }
 
-async function signedState(provider: string, secret: string): Promise<string> {
+async function signedState(
+  provider: string,
+  browserNonce: string,
+  secret: string,
+): Promise<string> {
   const payload = base64url(
     new TextEncoder().encode(
       JSON.stringify({
         provider,
-        nonce: crypto.randomUUID(),
+        nonce: browserNonce,
         issuedAt: Date.now(),
       }),
     ),
@@ -48,7 +52,10 @@ async function signedState(provider: string, secret: string): Promise<string> {
   return `${payload}.${await hmac(payload, secret)}`;
 }
 
-async function verifyState(state: string, secret: string): Promise<{ provider: string } | null> {
+async function verifyState(
+  state: string,
+  secret: string,
+): Promise<{ provider: string; nonce: string } | null> {
   const [payload, signature] = state.split(".");
   if (!payload || !signature) return null;
   const expected = await hmac(payload, secret);
@@ -66,25 +73,32 @@ async function verifyState(state: string, secret: string): Promise<{ provider: s
     ),
   ) as {
     provider?: string;
+    nonce?: string;
     issuedAt?: number;
   };
-  if (!parsed.provider || !parsed.issuedAt || Date.now() - parsed.issuedAt > 10 * 60_000)
+  if (
+    !parsed.provider ||
+    !parsed.nonce ||
+    !parsed.issuedAt ||
+    Date.now() - parsed.issuedAt > 10 * 60_000
+  )
     return null;
-  return { provider: parsed.provider };
+  return { provider: parsed.provider, nonce: parsed.nonce };
 }
 
 export async function createAuthorizationUrl(
   providerId: string,
   redirectUri: string,
   envVars: Record<string, unknown>,
-): Promise<{ url: string; state: string }> {
+  browserNonce = crypto.randomUUID(),
+): Promise<{ url: string; state: string; browserNonce: string }> {
   const strategy = globalProviderRegistry.get(providerId);
   if (!strategy) throw new Error("Unknown authentication provider");
 
   const stateSecret = env(envVars, "AURA_AUTH_STATE_SECRET");
   if (!stateSecret) throw new Error("AURA_AUTH_STATE_SECRET is not configured");
 
-  const state = await signedState(providerId, stateSecret);
+  const state = await signedState(providerId, browserNonce, stateSecret);
   const clientId = env(
     envVars,
     `AURA_AUTH_${providerId.toUpperCase().replace(/-/g, "_")}_CLIENT_ID`,
@@ -101,7 +115,7 @@ export async function createAuthorizationUrl(
     url.searchParams.set("response_type", "code");
     url.searchParams.set("scope", "openid profile email");
     url.searchParams.set("state", state);
-    return { url: url.toString(), state };
+    return { url: url.toString(), state, browserNonce };
   }
 
   if (strategy.type === "OAuth2") {
@@ -114,7 +128,7 @@ export async function createAuthorizationUrl(
       providerId === "github" ? "read:user user:email" : "openid profile email",
     );
     url.searchParams.set("state", state);
-    return { url: url.toString(), state };
+    return { url: url.toString(), state, browserNonce };
   }
 
   throw new Error(`Provider strategy ${strategy.type} requires a dedicated adapter`);
