@@ -1,7 +1,9 @@
 name: Format Layer 4
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - fix/typecheck-lint-cleanup
 
 permissions:
   contents: write
