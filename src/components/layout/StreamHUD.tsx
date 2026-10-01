@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
 import { motion, useDragControls } from "framer-motion";
-import { X, Maximize2, Activity } from "lucide-react";
+import { X, Activity } from "lucide-react";
 import { useMapStore } from "@/store/mapStore";
 
 export function StreamHUD() {
@@ -27,46 +26,27 @@ export function StreamHUD() {
         <div className="flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-primary" />
           <span className="font-display text-[10px] uppercase tracking-wider text-primary">
-            LIVE: {streamTarget.id || "CCTV-01"}
+            STREAM: {streamTarget.id || "UNNAMED"}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="text-primary/70 hover:text-primary transition-colors">
-            <Maximize2 className="h-3 w-3" />
-          </button>
-          <button
-            onClick={() => setStreamTarget(null)}
-            className="text-primary/70 hover:text-destructive transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+        <button
+          onClick={() => setStreamTarget(null)}
+          className="text-primary/70 transition-colors hover:text-destructive"
+          aria-label="Close stream panel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="relative flex aspect-video w-full items-center justify-center bg-black/90 p-4">
+        <div className="text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          <div className="mb-2 text-primary">NO STREAM SOURCE CONFIGURED</div>
+          <div>Attach a verified HLS, MJPEG, or WebRTC source before opening this panel.</div>
         </div>
       </div>
 
-      <div className="relative aspect-video w-full bg-black/90 p-1">
-        {/* Placeholder for real HLS/MJPEG feed */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40">
-          <div className="h-10 w-10 animate-pulse rounded-full border-2 border-dashed border-primary/50" />
-          <p className="mt-2 text-[9px] uppercase tracking-widest text-primary/50">
-            Acquiring signal
-          </p>
-        </div>
-
-        {/* Synthetic overlay metrics */}
-        <div className="absolute bottom-2 left-2 flex flex-col gap-0.5">
-          <span className="text-[9px] text-primary/80 font-mono">
-            LAT: {streamTarget.lat?.toFixed(4) || "0.0000"}
-          </span>
-          <span className="text-[9px] text-primary/80 font-mono">
-            LON: {streamTarget.lon?.toFixed(4) || "0.0000"}
-          </span>
-        </div>
-        <div className="absolute top-2 right-2">
-          <span className="flex items-center gap-1.5 text-[9px] text-destructive font-mono blink">
-            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-            REC
-          </span>
-        </div>
+      <div className="border-t border-primary/20 px-3 py-2 font-mono text-[9px] text-muted-foreground">
+        LAT: {streamTarget.lat.toFixed(4)} · LON: {streamTarget.lon.toFixed(4)}
       </div>
     </motion.div>
   );
