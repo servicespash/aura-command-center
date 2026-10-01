@@ -116,8 +116,9 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       setResponse(
         "[DEVICES] Transient authorized device ledger\\n" +
           devices
-            .map((device) =>
-              `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
+            .map(
+              (device) =>
+                `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
             )
             .join("\\n"),
       );
@@ -126,7 +127,8 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   "device-enroll": {
     name: "device-enroll",
     requiredPkg: "device-ledger",
-    description: "Enrolls the current device locally; network and location fields are supplied by the authorized device agent.",
+    description:
+      "Enrolls the current device locally; network and location fields are supplied by the authorized device agent.",
     execute: (args, setResponse) => {
       const name = String(args["name"] || "").trim();
       if (!name) {
