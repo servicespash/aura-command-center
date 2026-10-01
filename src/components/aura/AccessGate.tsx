@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { globalProviderRegistry } from "@/services/auth/providers";
 type Stage = 0 | 1 | 2;
 const STAGES = [
   {
@@ -16,10 +17,12 @@ const STAGES = [
   },
 ] as const;
 
-const PROVIDERS = [
-  { id: "google", label: "Google / OIDC" },
-  { id: "github", label: "GitHub OAuth" },
-];
+const PROVIDERS = globalProviderRegistry.getAll()
+  .filter((provider) => provider.type === "OIDC" || provider.type === "OAuth2")
+  .map((provider) => ({
+    id: provider.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    label: `${provider.name} / ${provider.type}`,
+  }));
 
 export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const [stage, setStage] = useState<Stage>(0);
