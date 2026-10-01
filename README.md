@@ -68,3 +68,8 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Layer 4 defensive telemetry
+
+The command center keeps live session state, agent heartbeats, endpoint state, validated spatial pulses, and WebRTC signaling state transient. Evidence observations can drive map focus and pulse rendering without creating a persistent device-location ledger. P2P signaling uses short-lived signed tokens, nonce replay protection, bounded request rates, two-peer rooms, payload validation, and 30-second stale-state collection.
+
