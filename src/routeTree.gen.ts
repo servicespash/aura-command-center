@@ -10,6 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAssetsEnrollRouteImport } from './routes/api/assets/enroll'
+import { Route as ApiAssetsHeartbeatRouteImport } from './routes/api/assets/heartbeat'
+import { Route as ApiAssetsLiveRouteImport } from './routes/api/assets/live'
 import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
 import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
@@ -34,6 +37,10 @@ const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
   path: '/api/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+
+const ApiAssetsEnrollRoute = ApiAssetsEnrollRouteImport.update({ id: '/api/assets/enroll', path: '/api/assets/enroll', getParentRoute: () => rootRouteImport } as any)
+const ApiAssetsHeartbeatRoute = ApiAssetsHeartbeatRouteImport.update({ id: '/api/assets/heartbeat', path: '/api/assets/heartbeat', getParentRoute: () => rootRouteImport } as any)
+const ApiAssetsLiveRoute = ApiAssetsLiveRouteImport.update({ id: '/api/assets/live', path: '/api/assets/live', getParentRoute: () => rootRouteImport } as any)
 
 const ApiAuthVerifyRoute = ApiAuthVerifyRouteImport.update({
   id: '/api/auth/verify',
@@ -63,6 +70,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/assets/enroll': typeof ApiAssetsEnrollRoute
+  '/api/assets/heartbeat': typeof ApiAssetsHeartbeatRoute
+  '/api/assets/live': typeof ApiAssetsLiveRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
   '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
   '/api/p2p/signal': typeof ApiP2pSignalRoute
@@ -83,16 +93,19 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
+  fullPaths: '/' | '/api/assets/enroll' | '/api/assets/heartbeat' | '/api/assets/live' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
   fileRoutesByTo: FileRoutesByTo
   fileRoutesById: FileRoutesById
-  to: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
-  id: '__root__' | '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
+  to: '/' | '/api/assets/enroll' | '/api/assets/heartbeat' | '/api/assets/live' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
+  id: '__root__' | '/' | '/api/assets/enroll' | '/api/assets/heartbeat' | '/api/assets/live' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAuthStartRoute: typeof ApiAuthStartRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
+  ApiAssetsEnrollRoute: typeof ApiAssetsEnrollRoute
+  ApiAssetsHeartbeatRoute: typeof ApiAssetsHeartbeatRoute
+  ApiAssetsLiveRoute: typeof ApiAssetsLiveRoute
   ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
   ApiOnboardingDomainVerifyRoute: typeof ApiOnboardingDomainVerifyRoute
   ApiP2pSignalRoute: typeof ApiP2pSignalRoute
@@ -122,6 +135,9 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/assets/enroll': { id: '/api/assets/enroll', path: '/api/assets/enroll', fullPath: '/api/assets/enroll', preLoaderRoute: typeof ApiAssetsEnrollRouteImport, parentRoute: typeof rootRouteImport }
+    '/api/assets/heartbeat': { id: '/api/assets/heartbeat', path: '/api/assets/heartbeat', fullPath: '/api/assets/heartbeat', preLoaderRoute: typeof ApiAssetsHeartbeatRouteImport, parentRoute: typeof rootRouteImport }
+    '/api/assets/live': { id: '/api/assets/live', path: '/api/assets/live', fullPath: '/api/assets/live', preLoaderRoute: typeof ApiAssetsLiveRouteImport, parentRoute: typeof rootRouteImport }
     '/api/auth/verify': {
       id: '/api/auth/verify'
       path: '/api/auth/verify'
@@ -157,6 +173,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAuthStartRoute: ApiAuthStartRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
+  ApiAssetsEnrollRoute: ApiAssetsEnrollRoute,
+  ApiAssetsHeartbeatRoute: ApiAssetsHeartbeatRoute,
+  ApiAssetsLiveRoute: ApiAssetsLiveRoute,
   ApiAuthVerifyRoute: ApiAuthVerifyRoute,
   ApiOnboardingDomainVerifyRoute: ApiOnboardingDomainVerifyRoute,
   ApiP2pSignalRoute: ApiP2pSignalRoute,
