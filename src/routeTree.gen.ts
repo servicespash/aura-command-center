@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
+import { Route as ApiP2pSignalRouteImport } from './routes/api/p2p/signal'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,29 +25,40 @@ const ApiAuthVerifyRoute = ApiAuthVerifyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const ApiP2pSignalRoute = ApiP2pSignalRouteImport.update({
+  id: '/api/p2p/signal',
+  path: '/api/p2p/signal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/p2p/signal': typeof ApiP2pSignalRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/p2p/signal': typeof ApiP2pSignalRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/p2p/signal': typeof ApiP2pSignalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/auth/verify'
+  fullPaths: '/' | '/api/auth/verify' | '/api/p2p/signal'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/auth/verify'
-  id: '__root__' | '/' | '/api/auth/verify'
   fileRoutesById: FileRoutesById
+  to: '/' | '/api/auth/verify' | '/api/p2p/signal'
+  id: '__root__' | '/' | '/api/auth/verify' | '/api/p2p/signal'
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
+  ApiP2pSignalRoute: typeof ApiP2pSignalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +77,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/p2p/signal': {
+      id: '/api/p2p/signal'
+      path: '/api/p2p/signal'
+      fullPath: '/api/p2p/signal'
+      preLoaderRoute: typeof ApiP2pSignalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAuthVerifyRoute: ApiAuthVerifyRoute,
+  ApiP2pSignalRoute: ApiP2pSignalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
