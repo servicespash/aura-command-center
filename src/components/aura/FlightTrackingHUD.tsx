@@ -52,14 +52,14 @@ export function FlightTrackingHUD() {
           key={flight.icao24}
           type="button"
           className="pointer-events-auto rounded border border-primary/30 bg-black/85 p-3 text-left font-mono text-[10px] text-primary shadow-lg transition-colors hover:border-primary/70"
-          onClick={() =>
-            (setStreamTarget({
+          onClick={() => {
+            setStreamTarget({
               id: flight.callsign || flight.icao24,
               lat: flight.latitude,
               lon: flight.longitude,
-            }),
-            triggerFlyTo([flight.longitude, flight.latitude]))
-          }
+            });
+            triggerFlyTo([flight.longitude, flight.latitude]);
+          }}
         >
           <div className="mb-1 flex items-center justify-between border-b border-primary/20 pb-1 font-bold text-foreground">
             <span>{flight.callsign || flight.icao24}</span>
