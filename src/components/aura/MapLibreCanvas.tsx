@@ -23,7 +23,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
     Record<string, GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>>
   >({});
   const [map, setMap] = useState<maplibregl.Map | null>(null);
-  const { setStreamTarget } = useMapStore();
+  const { setStreamTarget, streamTarget } = useMapStore();
   const events = useTelemetryStore((state) => state.events);
 
   useLayoutEffect(() => {
@@ -85,6 +85,24 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
           "circle-color": ["match", ["get", "type"], "satellite", "#ef4444", "#38bdf8"],
           "circle-opacity": 0.8,
           "circle-stroke-width": 0,
+        },
+      });
+
+      mapInstance.addSource("spatial-pulse", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      mapInstance.addLayer({
+        id: "spatial-pulse-ring",
+        type: "circle",
+        source: "spatial-pulse",
+        paint: {
+          "circle-radius": 18,
+          "circle-color": "transparent",
+          "circle-stroke-color": "#38bdf8",
+          "circle-stroke-width": 2,
+          "circle-opacity": 0.85,
         },
       });
 
@@ -186,14 +204,37 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
   }, [map]);
 
   useEffect(() => {
+    if (!map || !streamTarget) return;
+    const source = map.getSource("spatial-pulse") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [streamTarget.lon, streamTarget.lat],
+          },
+          properties: { id: streamTarget.id ?? "" },
+        },
+      ],
+    });
+    map.flyTo({
+      center: [streamTarget.lon, streamTarget.lat],
+      zoom: Math.max(zoom, 6),
+      speed: 1.2,
+      curve: 1.4,
+      essential: true,
+    });
+  }, [map, streamTarget, zoom]);
+
+  useEffect(() => {
     if (map) map.easeTo({ zoom });
   }, [zoom, map]);
 
   return (
     <div ref={mapContainer} className="absolute inset-0 h-full w-full">
-      <div className="absolute top-4 left-4 z-10 border-2 border-dashed border-red-500 bg-black/70 text-red-400 p-3 text-xs font-mono tracking-wider pointer-events-none">
-        Map Initialized
-      </div>
       {map && <ThreatHeatmap map={map} events={events} />}
     </div>
   );
