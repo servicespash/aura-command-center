@@ -63,6 +63,10 @@ export class ProviderRegistry {
     return Array.from(this.providers.values());
   }
 
+  public getEntries(): Array<[string, AnyStrategy]> {
+    return Array.from(this.providers.entries());
+  }
+
   public async resolveOIDCMetadata(id: string): Promise<Record<string, unknown> | null> {
     const strategy = this.providers.get(id);
     if (!strategy || strategy.type !== "OIDC") {
