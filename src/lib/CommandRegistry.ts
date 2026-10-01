@@ -355,3 +355,6 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
     },
   },
 };
+
+COMMAND_REGISTRY["sign-in"] = COMMAND_REGISTRY.login;
+COMMAND_REGISTRY.signin = COMMAND_REGISTRY.login;
