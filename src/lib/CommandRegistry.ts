@@ -80,7 +80,11 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
         .getEntries()
         .filter(([, provider]) => provider.type === "OIDC" || provider.type === "OAuth2")
         .map(([id, provider]) => `${id.padEnd(16)} ${provider.name} [${provider.type}]`);
-      setResponse(providers.length ? `[AUTH] Providers\\n${providers.join("\\n")}` : "[AUTH] No browser identity providers registered.");
+      setResponse(
+        providers.length
+          ? `[AUTH] Providers\\n${providers.join("\\n")}`
+          : "[AUTH] No browser identity providers registered.",
+      );
     },
   },
   login: {
@@ -111,9 +115,11 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       }
       setResponse(
         "[DEVICES] Transient authorized device ledger\\n" +
-          devices.map((device) =>
-            `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
-          ).join("\\n"),
+          devices
+            .map((device) =>
+              `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
+            )
+            .join("\\n"),
       );
     },
   },
@@ -137,7 +143,9 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
         lastSeen: Date.now(),
         status: "online",
       });
-      setResponse(`[DEVICES] Enrolled ${name} locally as ${id}. IP/location remain unset until reported by the authorized device agent.`);
+      setResponse(
+        `[DEVICES] Enrolled ${name} locally as ${id}. IP/location remain unset until reported by the authorized device agent.`,
+      );
     },
   },
   "device-revoke": {
