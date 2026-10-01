@@ -28,7 +28,9 @@ function validId(value: string): boolean {
   return /^[A-Za-z0-9_-]{8,96}$/.test(value);
 }
 
-export async function issueEnrollment(assetId: string): Promise<{ token: string; expiresAt: number }> {
+export async function issueEnrollment(
+  assetId: string,
+): Promise<{ token: string; expiresAt: number }> {
   if (!validId(assetId)) throw new Error("Invalid asset identifier");
   const token = crypto.randomUUID() + "-" + crypto.randomUUID();
   const expiresAt = Date.now() + ENROLLMENT_TTL_MS;
@@ -54,10 +56,16 @@ export async function acceptHeartbeat(
   if (heartbeat.latitude !== undefined && (heartbeat.latitude < -90 || heartbeat.latitude > 90)) {
     throw new Error("Invalid latitude");
   }
-  if (heartbeat.longitude !== undefined && (heartbeat.longitude < -180 || heartbeat.longitude > 180)) {
+  if (
+    heartbeat.longitude !== undefined &&
+    (heartbeat.longitude < -180 || heartbeat.longitude > 180)
+  ) {
     throw new Error("Invalid longitude");
   }
-  if (heartbeat.accuracyM !== undefined && (heartbeat.accuracyM < 0 || heartbeat.accuracyM > 1_000_000)) {
+  if (
+    heartbeat.accuracyM !== undefined &&
+    (heartbeat.accuracyM < 0 || heartbeat.accuracyM > 1_000_000)
+  ) {
     throw new Error("Invalid location accuracy");
   }
 
