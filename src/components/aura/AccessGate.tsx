@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { globalProviderRegistry } from "@/services/auth/providers";
 type Stage = 0 | 1 | 2;
 const STAGES = [
@@ -31,6 +31,19 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const current = STAGES[stage];
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/auth/session", { credentials: "include", cache: "no-store" })
+      .then((response) => response.json() as Promise<{ authenticated?: boolean }>)
+      .then((payload) => {
+        if (active && payload.authenticated) onGranted();
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [onGranted]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
