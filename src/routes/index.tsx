@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { AccessGate } from "@/components/aura/AccessGate";
 import { CommandDeck } from "@/components/aura/CommandDeck";
 
@@ -27,9 +27,10 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [granted, setGranted] = useState(false);
+  const grant = useCallback(() => setGranted(true), []);
   return granted ? (
     <CommandDeck onLock={() => setGranted(false)} />
   ) : (
-    <AccessGate onGranted={() => setGranted(true)} />
+    <AccessGate onGranted={grant} />
   );
 }
