@@ -134,7 +134,8 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
         return;
       }
       const id = crypto.randomUUID();
-      const platform = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : "unknown";
+      const platform =
+        typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : "unknown";
       useDeviceLedgerStore.getState().enroll({
         id,
         name,
