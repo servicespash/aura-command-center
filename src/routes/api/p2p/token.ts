@@ -6,11 +6,18 @@ export const Route = createFileRoute("/api/p2p/token")({
     handlers: {
       POST: async ({ request, context }) => {
         const session = await authenticateSessionRequest(request, context.env);
-        if (!session) return Response.json({ ok: false, error: "Authenticated session required" }, { status: 401 });
+        if (!session)
+          return Response.json(
+            { ok: false, error: "Authenticated session required" },
+            { status: 401 },
+          );
         const token = await issueP2PToken(session, context.env);
-        return Response.json({ ok: true, token }, {
-          headers: { "cache-control": "no-store" },
-        });
+        return Response.json(
+          { ok: true, token },
+          {
+            headers: { "cache-control": "no-store" },
+          },
+        );
       },
     },
   },
