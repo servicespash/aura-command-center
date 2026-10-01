@@ -15,9 +15,19 @@ export const Route = createFileRoute("/api/auth/session")({
     handlers: {
       GET: async ({ request, context }) => {
         const value = readCookie(request);
-        if (!value) return Response.json({ authenticated: false }, { headers: { "cache-control": "no-store" } });
+        if (!value) {
+          return Response.json(
+            { authenticated: false },
+            { headers: { "cache-control": "no-store" } },
+          );
+        }
         const claims = await verifySessionCookie(value, context.env);
-        if (!claims) return Response.json({ authenticated: false }, { headers: { "cache-control": "no-store" } });
+        if (!claims) {
+          return Response.json(
+            { authenticated: false },
+            { headers: { "cache-control": "no-store" } },
+          );
+        }
         return Response.json(
           {
             authenticated: true,
