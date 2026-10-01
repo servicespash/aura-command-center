@@ -17,10 +17,11 @@ const STAGES = [
   },
 ] as const;
 
-const PROVIDERS = globalProviderRegistry.getAll()
-  .filter((provider) => provider.type === "OIDC" || provider.type === "OAuth2")
-  .map((provider) => ({
-    id: provider.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+const PROVIDERS = globalProviderRegistry
+  .getEntries()
+  .filter(([, provider]) => provider.type === "OIDC" || provider.type === "OAuth2")
+  .map(([id, provider]) => ({
+    id,
     label: `${provider.name} / ${provider.type}`,
   }));
 
