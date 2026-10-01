@@ -209,13 +209,24 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
     if (!source) return;
     source.setData({
       type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [streamTarget.lon, streamTarget.lat] },
-        properties: { id: streamTarget.id ?? "" },
-      }],
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [streamTarget.lon, streamTarget.lat],
+          },
+          properties: { id: streamTarget.id ?? "" },
+        },
+      ],
     });
-    map.flyTo({ center: [streamTarget.lon, streamTarget.lat], zoom: Math.max(zoom, 6), speed: 1.2, curve: 1.4, essential: true });
+    map.flyTo({
+      center: [streamTarget.lon, streamTarget.lat],
+      zoom: Math.max(zoom, 6),
+      speed: 1.2,
+      curve: 1.4,
+      essential: true,
+    });
   }, [map, streamTarget, zoom]);
 
   useEffect(() => {
