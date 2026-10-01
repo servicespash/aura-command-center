@@ -35,7 +35,11 @@ async function hmac(value: string, secret: string): Promise<string> {
   return base64url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
 }
 
-async function signedState(provider: string, browserNonce: string, secret: string): Promise<string> {
+async function signedState(
+  provider: string,
+  browserNonce: string,
+  secret: string,
+): Promise<string> {
   const payload = base64url(
     new TextEncoder().encode(
       JSON.stringify({
@@ -48,7 +52,10 @@ async function signedState(provider: string, browserNonce: string, secret: strin
   return `${payload}.${await hmac(payload, secret)}`;
 }
 
-async function verifyState(state: string, secret: string): Promise<{ provider: string; nonce: string } | null> {
+async function verifyState(
+  state: string,
+  secret: string,
+): Promise<{ provider: string; nonce: string } | null> {
   const [payload, signature] = state.split(".");
   if (!payload || !signature) return null;
   const expected = await hmac(payload, secret);
@@ -69,7 +76,12 @@ async function verifyState(state: string, secret: string): Promise<{ provider: s
     nonce?: string;
     issuedAt?: number;
   };
-  if (!parsed.provider || !parsed.nonce || !parsed.issuedAt || Date.now() - parsed.issuedAt > 10 * 60_000)
+  if (
+    !parsed.provider ||
+    !parsed.nonce ||
+    !parsed.issuedAt ||
+    Date.now() - parsed.issuedAt > 10 * 60_000
+  )
     return null;
   return { provider: parsed.provider, nonce: parsed.nonce };
 }
