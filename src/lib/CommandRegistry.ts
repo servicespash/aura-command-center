@@ -5,6 +5,8 @@ import { MMDBReader } from "@/services/spatial/mmdbReader";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { PanicService } from "@/services/security/panicService";
 import { agentProbe } from "@/services/runtime/agentClient";
+import { globalProviderRegistry } from "@/services/auth/providers";
+import { useDeviceLedgerStore } from "@/store/deviceLedgerStore";
 
 export interface CommandDefinition {
   name: string;
@@ -69,6 +71,18 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       }
     },
   },
+  providers: {
+    name: "providers",
+    requiredPkg: "auth-bridge",
+    description: "Lists configured client-visible identity provider strategies.",
+    execute: (_args, setResponse) => {
+      const providers = globalProviderRegistry
+        .getEntries()
+        .filter(([, provider]) => provider.type === "OIDC" || provider.type === "OAuth2")
+        .map(([id, provider]) => `${id.padEnd(16)} ${provider.name} [${provider.type}]`);
+      setResponse(providers.length ? `[AUTH] Providers\\n${providers.join("\\n")}` : "[AUTH] No browser identity providers registered.");
+    },
+  },
   login: {
     name: "login",
     requiredPkg: "auth-bridge",
@@ -83,6 +97,61 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       }
       setResponse(`[AUTH] Starting ${provider} identity flow…`);
       window.location.assign(`/api/auth/start?provider=${encodeURIComponent(provider)}`);
+    },
+  },
+  devices: {
+    name: "devices",
+    requiredPkg: "device-ledger",
+    description: "Displays the transient locally enrolled devices and their last reported state.",
+    execute: (_args, setResponse) => {
+      const devices = Object.values(useDeviceLedgerStore.getState().devices);
+      if (!devices.length) {
+        setResponse("[DEVICES] No locally enrolled devices.");
+        return;
+      }
+      setResponse(
+        "[DEVICES] Transient authorized device ledger\\n" +
+          devices.map((device) =>
+            `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
+          ).join("\\n"),
+      );
+    },
+  },
+  "device-enroll": {
+    name: "device-enroll",
+    requiredPkg: "device-ledger",
+    description: "Enrolls the current device locally; network and location fields are supplied by the authorized device agent.",
+    execute: (args, setResponse) => {
+      const name = String(args["name"] || "").trim();
+      if (!name) {
+        setResponse("[DEVICES] Usage: device-enroll --name <device-name>");
+        return;
+      }
+      const id = crypto.randomUUID();
+      const platform = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : "unknown";
+      useDeviceLedgerStore.getState().enroll({
+        id,
+        name,
+        platform,
+        enrolledAt: Date.now(),
+        lastSeen: Date.now(),
+        status: "online",
+      });
+      setResponse(`[DEVICES] Enrolled ${name} locally as ${id}. IP/location remain unset until reported by the authorized device agent.`);
+    },
+  },
+  "device-revoke": {
+    name: "device-revoke",
+    requiredPkg: "device-ledger",
+    description: "Revokes a locally enrolled device from the transient ledger.",
+    execute: (args, setResponse) => {
+      const id = String(args["id"] || "").trim();
+      if (!id) {
+        setResponse("[DEVICES] Device ID is required.");
+        return;
+      }
+      useDeviceLedgerStore.getState().revoke(id);
+      setResponse(`[DEVICES] Revoked local device ${id}.`);
     },
   },
   "db-connect": {
