@@ -149,13 +149,16 @@ export async function exchangeCallback(
   if (!userResponse.ok) throw new Error("Provider user profile request failed");
 
   const profile = (await userResponse.json()) as Record<string, unknown>;
-  return {
-    provider: providerId,
-    subject: String(profile["sub"] ?? profile["id"] ?? ""),
-    email: typeof profile["email"] === "string" ? profile["email"] : undefined,
-    name: typeof profile["name"] === "string" ? profile["name"] : typeof profile["login"] === "string" ? profile["login"] : undefined,
-    avatar: typeof profile["picture"] === "string" ? profile["picture"] : typeof profile["avatar_url"] === "string" ? profile["avatar_url"] : undefined,
-  };
+  const subject = String(profile["sub"] ?? profile["id"] ?? "");
+  if (!subject) throw new Error("Provider returned no stable subject");
+
+  const claims: ProviderClaims = { provider: providerId, subject };
+  if (typeof profile["email"] === "string") claims.email = profile["email"];
+  if (typeof profile["name"] === "string") claims.name = profile["name"];
+  else if (typeof profile["login"] === "string") claims.name = profile["login"];
+  if (typeof profile["picture"] === "string") claims.avatar = profile["picture"];
+  else if (typeof profile["avatar_url"] === "string") claims.avatar = profile["avatar_url"];
+  return claims;
 }
 
 export async function verifyOAuthState(state: string, envVars: Record<string, unknown>) {
