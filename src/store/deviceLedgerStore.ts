@@ -14,7 +14,10 @@ export type EnrolledDevice = {
 type DeviceLedgerState = {
   devices: Record<string, EnrolledDevice>;
   enroll: (device: EnrolledDevice) => void;
-  heartbeat: (deviceId: string, patch?: Partial<Pick<EnrolledDevice, "ipAddress" | "location">>) => void;
+  heartbeat: (
+    deviceId: string,
+    patch?: Partial<Pick<EnrolledDevice, "ipAddress" | "location">>,
+  ) => void;
   revoke: (deviceId: string) => void;
   clear: () => void;
 };
@@ -22,7 +25,9 @@ type DeviceLedgerState = {
 export const useDeviceLedgerStore = create<DeviceLedgerState>((set) => ({
   devices: {},
   enroll: (device) =>
-    set((state) => ({ devices: { ...state.devices, [device.id]: device } })),
+    set((state) => ({
+      devices: { ...state.devices, [device.id]: device },
+    })),
   heartbeat: (deviceId, patch) =>
     set((state) => {
       const device = state.devices[deviceId];
