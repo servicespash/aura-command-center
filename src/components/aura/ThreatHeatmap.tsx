@@ -16,7 +16,7 @@ export function ThreatHeatmap({ map, events }: Props) {
     if (!svgRef.current) return;
 
     const svg = d3.select(svgRef.current);
-    
+
     const update = () => {
       svg.selectAll("*").remove();
 
@@ -25,14 +25,15 @@ export function ThreatHeatmap({ map, events }: Props) {
         return [point.x, point.y] as [number, number];
       };
 
-      const data = events.filter(e => e.lat && e.lon);
+      const data = events.filter((e) => e.lat && e.lon);
 
-      svg.selectAll("circle")
+      svg
+        .selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("cx", d => projection([d.lon!, d.lat!])[0])
-        .attr("cy", d => projection([d.lon!, d.lat!])[1])
+        .attr("cx", (d) => projection([d.lon!, d.lat!])[0])
+        .attr("cy", (d) => projection([d.lon!, d.lat!])[1])
         .attr("r", 10)
         .attr("fill", "red")
         .attr("fill-opacity", 0.4);

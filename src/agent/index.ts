@@ -4,10 +4,12 @@ import { Socket } from "node:net";
 import { URL } from "node:url";
 import type { ProbeRequest, ProbeResponse } from "./protocol";
 
-const PORT = Number(process.env.AURA_AGENT_PORT ?? 4317);
-const TOKEN = process.env.AURA_AGENT_TOKEN ?? "";
-const ALLOWLIST = (process.env.AURA_AGENT_ALLOWLIST ?? "")
-  .split(",").map((v) => v.trim().toLowerCase()).filter(Boolean);
+const PORT = Number(process.env["AURA_AGENT_PORT"] ?? 4317);
+const TOKEN = process.env["AURA_AGENT_TOKEN"] ?? "";
+const ALLOWLIST = (process.env["AURA_AGENT_ALLOWLIST"] ?? "")
+  .split(",")
+  .map((v) => v.trim().toLowerCase())
+  .filter(Boolean);
 
 function allowed(host: string) {
   if (!ALLOWLIST.length) return false;
@@ -28,9 +30,19 @@ async function tcpProbe(host: string, port: number, timeoutMs: number) {
   const started = performance.now();
   await new Promise<void>((resolve, reject) => {
     const socket = new Socket();
-    const timer = setTimeout(() => { socket.destroy(); reject(new Error("TCP connection timed out")); }, timeoutMs);
-    socket.once("connect", () => { clearTimeout(timer); socket.destroy(); resolve(); });
-    socket.once("error", (err) => { clearTimeout(timer); reject(err); });
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error("TCP connection timed out"));
+    }, timeoutMs);
+    socket.once("connect", () => {
+      clearTimeout(timer);
+      socket.destroy();
+      resolve();
+    });
+    socket.once("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
     socket.connect(port, host);
   });
   return { reachable: true, port, latencyMs: Math.round(performance.now() - started) };
@@ -41,7 +53,9 @@ const server = createServer(async (req, res) => {
   if (!auth(req)) return json(res, 401, { error: "Unauthorized" });
 
   let body = "";
-  req.on("data", (chunk) => { body += chunk; });
+  req.on("data", (chunk) => {
+    body += chunk;
+  });
   req.on("end", async () => {
     const startedAt = new Date().toISOString();
     const started = performance.now();
@@ -58,16 +72,29 @@ const server = createServer(async (req, res) => {
       } else if (request.operation === "tcp") {
         target = request.host.trim();
         if (!allowed(target)) throw new Error("Target is not in AURA_AGENT_ALLOWLIST");
-        if (!Number.isInteger(request.port) || request.port < 1 || request.port > 65535) throw new Error("Invalid TCP port");
-        data = await tcpProbe(target, request.port, Math.min(Math.max(request.timeoutMs ?? 5000, 250), 30000));
+        if (!Number.isInteger(request.port) || request.port < 1 || request.port > 65535)
+          throw new Error("Invalid TCP port");
+        data = await tcpProbe(
+          target,
+          request.port,
+          Math.min(Math.max(request.timeoutMs ?? 5000, 250), 30000),
+        );
       } else {
         const url = new URL(request.url);
         target = url.toString();
-        if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only HTTP(S) targets are supported");
+        if (!["http:", "https:"].includes(url.protocol))
+          throw new Error("Only HTTP(S) targets are supported");
         if (!allowed(url.hostname)) throw new Error("Target is not in AURA_AGENT_ALLOWLIST");
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), Math.min(Math.max(request.timeoutMs ?? 10000, 500), 30000));
-        const response = await fetch(url, { method: request.method ?? "HEAD", redirect: "manual", signal: controller.signal });
+        const timer = setTimeout(
+          () => controller.abort(),
+          Math.min(Math.max(request.timeoutMs ?? 10000, 500), 30000),
+        );
+        const response = await fetch(url, {
+          method: request.method ?? "HEAD",
+          redirect: "manual",
+          signal: controller.signal,
+        });
         clearTimeout(timer);
         data = {
           status: response.status,
@@ -78,7 +105,14 @@ const server = createServer(async (req, res) => {
         };
       }
 
-      const result: ProbeResponse = { ok: true, operation: request.operation, target, startedAt, durationMs: Math.round(performance.now() - started), data };
+      const result: ProbeResponse = {
+        ok: true,
+        operation: request.operation,
+        target,
+        startedAt,
+        durationMs: Math.round(performance.now() - started),
+        data,
+      };
       json(res, 200, result);
     } catch (error) {
       const result: ProbeResponse = {

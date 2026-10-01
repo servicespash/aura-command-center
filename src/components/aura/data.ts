@@ -131,68 +131,6 @@ export type EgressNode = {
   masked: boolean;
 };
 
-export const EGRESS_NODES: EgressNode[] = [
-  {
-    id: "GH-01",
-    region: "eu-central",
-    city: "Frankfurt",
-    decoy: "185.22.14.9",
-    latency: 38,
-    masked: true,
-  },
-  {
-    id: "GH-02",
-    region: "us-east",
-    city: "Ashburn",
-    decoy: "23.129.64.217",
-    latency: 96,
-    masked: true,
-  },
-  {
-    id: "GH-03",
-    region: "ap-south",
-    city: "Mumbai",
-    decoy: "103.86.49.12",
-    latency: 142,
-    masked: true,
-  },
-  {
-    id: "GH-04",
-    region: "sa-east",
-    city: "Sao Paulo",
-    decoy: "177.54.203.88",
-    latency: 168,
-    masked: true,
-  },
-  {
-    id: "GH-05",
-    region: "af-east",
-    city: "Nairobi",
-    decoy: "197.248.11.64",
-    latency: 74,
-    masked: true,
-  },
-  {
-    id: "GH-06",
-    region: "ap-southeast",
-    city: "Singapore",
-    decoy: "146.70.83.201",
-    latency: 121,
-    masked: false,
-  },
-];
-
-const ACTORS = [
-  "port-scan sweep",
-  "credential stuffing",
-  "TLS fingerprint mismatch",
-  "subdomain enumeration",
-  "GeoIP anomaly",
-  "rate-limit breach",
-  "malformed header injection",
-  "tor exit node contact",
-];
-
 export type ThreatEvent = {
   id: string;
   at: Date;
@@ -214,11 +152,9 @@ export function eventToRecord(e: ThreatEvent): ConnectionRecord {
 }
 
 export function generateTxtToken() {
-  return `aura-verify=${Math.random().toString(36).slice(2, 10)}${Math.random()
-    .toString(36)
-    .slice(2, 10)}`;
+  return `aura-verify=${crypto.randomUUID()}`;
 }
 
 export function generateTelemetryKey() {
-  return `tk_live_${Math.random().toString(36).slice(2, 9)}${Math.random().toString(36).slice(2, 6)}`;
+  return `tk_live_${crypto.randomUUID().replace(/-/g, "")}`;
 }

@@ -13,7 +13,7 @@ export const auditLayout = (node: HTMLElement) => {
         current,
         `Display: ${style.display}`,
         `Visibility: ${style.visibility}`,
-        `Opacity: ${style.opacity}`
+        `Opacity: ${style.opacity}`,
       );
     }
     current = current.parentElement;

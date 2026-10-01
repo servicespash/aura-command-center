@@ -7,6 +7,11 @@ import { useTelemetryStore } from "@/store/telemetryStore";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { ThreatHeatmap } from "./ThreatHeatmap";
 
+type TelemetryFeatureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  GeoJSON.GeoJsonProperties
+>;
+
 type Props = {
   zoom: number;
   viewMode: string;
@@ -14,6 +19,9 @@ type Props = {
 
 export function MapLibreCanvas({ zoom, viewMode }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const pulseFeatures = useRef<
+    Record<string, GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>>
+  >({});
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const { setStreamTarget } = useMapStore();
   const events = useTelemetryStore((state) => state.events);
@@ -25,7 +33,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
       map.resize();
       return;
     }
-    
+
     const mapInstance = new maplibregl.Map({
       container: mapContainer.current,
       style: {
@@ -64,7 +72,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
       mapInstance.addSource("aviation-telemetry", {
         type: "geojson",
-        data: initialData as GeoJSON.FeatureCollection,
+        data: initialData as TelemetryFeatureCollection,
         cluster: false,
       });
 
@@ -74,13 +82,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
         source: "aviation-telemetry",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.5, 5, 3, 10, 6],
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "satellite",
-            "#ef4444",
-            "#38bdf8",
-          ],
+          "circle-color": ["match", ["get", "type"], "satellite", "#ef4444", "#38bdf8"],
           "circle-opacity": 0.8,
           "circle-stroke-width": 0,
         },
@@ -111,20 +113,29 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
           currentBounds.getNorth(),
         );
         (mapInstance.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(
-          filteredData as GeoJSON.FeatureCollection,
+          filteredData as TelemetryFeatureCollection,
         );
       };
 
       mapInstance.on("moveend", updateSpatialIndex);
       mapInstance.on("zoomend", updateSpatialIndex);
-      mapInstance.on("mouseenter", "aviation-points", () => (mapInstance.getCanvas().style.cursor = "pointer"));
-      mapInstance.on("mouseleave", "aviation-points", () => (mapInstance.getCanvas().style.cursor = ""));
+      mapInstance.on(
+        "mouseenter",
+        "aviation-points",
+        () => (mapInstance.getCanvas().style.cursor = "pointer"),
+      );
+      mapInstance.on(
+        "mouseleave",
+        "aviation-points",
+        () => (mapInstance.getCanvas().style.cursor = ""),
+      );
       mapInstance.on("click", "aviation-points", (e) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
-        const coords = (feature.geometry as GeoJSON.Point).coordinates;
+        if (!feature || feature.geometry.type !== "Point") return;
+        const coords = feature.geometry.coordinates as [number, number];
         setStreamTarget({
-          id: (feature.properties as Record<string, unknown> | null)?.["id"],
+          id: String((feature.properties as Record<string, unknown> | null)?.["id"] ?? ""),
           lat: coords[1],
           lon: coords[0],
         });
@@ -142,7 +153,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
 
   useEffect(() => {
     if (map && map.getSource("threat-intel")) {
-      const geojson = {
+      const geojson: TelemetryFeatureCollection = {
         type: "FeatureCollection",
         features: events.map((e) => ({
           type: "Feature",
@@ -151,7 +162,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
         })),
       };
       (map.getSource("threat-intel") as maplibregl.GeoJSONSource).setData(
-        geojson as GeoJSON.FeatureCollection,
+        geojson as GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>,
       );
     }
   }, [events, map]);
@@ -159,11 +170,19 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
   useEffect(() => {
     const handleFlyTo = (payload: { center: [number, number]; zoom: number }) => {
       if (map) {
-        map.flyTo({ center: payload.center, zoom: payload.zoom || 6, speed: 1.2, curve: 1.4, essential: true });
+        map.flyTo({
+          center: payload.center,
+          zoom: payload.zoom || 6,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true,
+        });
       }
     };
     globalEvents.on(EVENTS.MAP_FLY_TO, handleFlyTo);
-    return () => { globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo) };
+    return () => {
+      globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo);
+    };
   }, [map]);
 
   useEffect(() => {
@@ -171,10 +190,7 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
   }, [zoom, map]);
 
   return (
-    <div
-      ref={mapContainer}
-      className="absolute inset-0 h-full w-full"
-    >
+    <div ref={mapContainer} className="absolute inset-0 h-full w-full">
       <div className="absolute top-4 left-4 z-10 border-2 border-dashed border-red-500 bg-black/70 text-red-400 p-3 text-xs font-mono tracking-wider pointer-events-none">
         Map Initialized
       </div>

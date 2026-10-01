@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { ThreatEvent, EGRESS_NODES } from "@/components/aura/data";
+import type { ThreatEvent } from "@/components/aura/data";
 
 type ArcData = {
   startLat: number;
@@ -9,6 +9,8 @@ type ArcData = {
   endLat: number;
   endLng: number;
   color: string;
+  label?: string;
+  score?: number;
 };
 
 export function OsirisGlobe({ zoom }: { zoom: number }) {
@@ -43,6 +45,8 @@ export function OsirisGlobe({ zoom }: { zoom: number }) {
         startLng: ev.lon as number,
         endLat: ev.destLat as number,
         endLng: ev.destLon as number,
+        label: ev.kind,
+        score: ev.score,
         color:
           ev.severity === "critical"
             ? "#ef4444"

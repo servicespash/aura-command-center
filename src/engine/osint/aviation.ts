@@ -1,9 +1,8 @@
 import Flatbush from "flatbush";
 
-type Feature = {
+type Feature = GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties> & {
   id: string;
-  geometry: { coordinates: [number, number] };
-  properties: { mag: number; [key: string]: any };
+  properties: { mag: number; [key: string]: unknown };
 };
 
 // Aviation TLE Propagator with Spatial Indexing
@@ -22,8 +21,8 @@ export const AviationTelemetry = {
       this.processFeatures(data.features || []);
       console.log(`[OSINT] Ingested ${data.features?.length || 0} live telemetry nodes.`);
     } catch (error) {
-      console.warn("[OSINT] Failed to fetch live telemetry, using synthetic fallback:", error);
-      this.processFeatures(this.generateFallbackData());
+      console.error("[OSINT] Live telemetry source unavailable:", error);
+      throw error;
     }
   },
 
@@ -31,6 +30,7 @@ export const AviationTelemetry = {
     index = new Flatbush(features.length);
     for (const feature of features) {
       const [lon, lat] = feature.geometry.coordinates;
+      if (lon === undefined || lat === undefined) continue;
       feature.properties = {
         ...feature.properties,
         id: feature.id,
@@ -42,15 +42,9 @@ export const AviationTelemetry = {
     allFeatures = features;
   },
 
-  generateFallbackData() {
-    return Array.from({ length: 50 }, (_, i) => ({
-      id: `synth-${i}`,
-      geometry: { coordinates: [Math.random() * 360 - 180, Math.random() * 180 - 90] },
-      properties: { mag: Math.random() * 5 },
-    }));
-  },
-
-  async getActiveVectors() {
+  async getActiveVectors(): Promise<
+    GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>
+  > {
     if (!index) await this.initialize();
     return {
       type: "FeatureCollection",
@@ -70,7 +64,9 @@ export const AviationTelemetry = {
     const results = index!.search(safeMinX, safeMinY, safeMaxX, safeMaxY);
     return {
       type: "FeatureCollection",
-      features: results.map((i) => allFeatures[i]),
+      features: results
+        .map((i) => allFeatures[i])
+        .filter((feature): feature is Feature => feature !== undefined),
     };
   },
 };

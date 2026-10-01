@@ -8,10 +8,14 @@ export function LayoutAuditOverlay() {
       const problematic: HTMLElement[] = [];
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
       let node: Node | null;
-      while (node = walker.nextNode()) {
+      while ((node = walker.nextNode())) {
         const el = node as HTMLElement;
         const style = window.getComputedStyle(el);
-        if (style.display === "none" || style.visibility === "hidden" || style.overflow === "hidden") {
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.overflow === "hidden"
+        ) {
           problematic.push(el);
         }
       }
@@ -23,7 +27,7 @@ export function LayoutAuditOverlay() {
   return (
     <>
       {issues.map((el, i) => (
-        <div 
+        <div
           key={i}
           className="absolute border-2 border-red-500 bg-red-500/20 z-[1000] pointer-events-none"
           style={{
