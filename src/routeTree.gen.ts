@@ -15,6 +15,7 @@ import { Route as ApiAssetsHeartbeatRouteImport } from './routes/api/assets/hear
 import { Route as ApiAssetsLiveRouteImport } from './routes/api/assets/live'
 import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as ApiOnboardingDomainVerifyRouteImport } from './routes/api/onboarding/domain/verify'
@@ -24,6 +25,12 @@ import { Route as ApiP2pTokenRouteImport } from './routes/api/p2p/token'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const ApiAuthStatusRoute = ApiAuthStatusRouteImport.update({
+  id: '/api/auth/status',
+  path: '/api/auth/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -77,6 +84,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/status': typeof ApiAuthStatusRoute
+  '/api/auth/status': typeof ApiAuthStatusRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/assets/enroll': typeof ApiAssetsEnrollRoute
   '/api/assets/heartbeat': typeof ApiAssetsHeartbeatRoute
@@ -112,6 +121,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAuthStartRoute: typeof ApiAuthStartRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiAuthStatusRoute: typeof ApiAuthStatusRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
   ApiAssetsEnrollRoute: typeof ApiAssetsEnrollRoute
   ApiAssetsHeartbeatRoute: typeof ApiAssetsHeartbeatRoute
@@ -129,6 +139,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/status': {
+      id: '/api/auth/status'
+      path: '/api/auth/status'
+      fullPath: '/api/auth/status'
+      preLoaderRoute: typeof ApiAuthStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/session': {
@@ -190,6 +207,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAuthStartRoute: ApiAuthStartRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
+  ApiAuthStatusRoute: ApiAuthStatusRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
   ApiAssetsEnrollRoute: ApiAssetsEnrollRoute,
   ApiAssetsHeartbeatRoute: ApiAssetsHeartbeatRoute,
