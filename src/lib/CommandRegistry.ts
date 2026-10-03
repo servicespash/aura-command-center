@@ -87,6 +87,41 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
       );
     },
   },
+  "auth-status": {
+    name: "auth-status",
+    requiredPkg: "auth-bridge",
+    description: "Reports authentication runtime configuration without exposing secrets.",
+    execute: async (_args, setResponse) => {
+      try {
+        const response = await fetch("/api/auth/status", { cache: "no-store" });
+        const status = (await response.json()) as {
+          stateSecretConfigured?: boolean;
+          sessionSigningKeyConfigured?: boolean;
+          providers?: Array<{
+            id: string;
+            name: string;
+            type: string;
+            clientIdConfigured: boolean;
+            clientSecretConfigured: boolean;
+          }>;
+        };
+        const providers = (status.providers ?? []).map(
+          (provider) =>
+            `${provider.id} | ${provider.type} | clientId=${provider.clientIdConfigured ? "configured" : "missing"} | clientSecret=${provider.clientSecretConfigured ? "configured" : "missing"}`,
+        );
+        setResponse(
+          [
+            `[AUTH] AURA state secret: ${status.stateSecretConfigured ? "configured" : "MISSING"}`,
+            `[AUTH] AURA session signing key: ${status.sessionSigningKeyConfigured ? "configured" : "MISSING"}`,
+            "[AUTH] Providers",
+            providers.length ? providers.join("\\n") : "none",
+          ].join("\\n"),
+        );
+      } catch (error) {
+        setResponse(`[AUTH] Status unavailable: ${error instanceof Error ? error.message : "request failed"}`);
+      }
+    },
+  },
   login: {
     name: "login",
     requiredPkg: "auth-bridge",
