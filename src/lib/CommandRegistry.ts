@@ -118,7 +118,9 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
           ].join("\\n"),
         );
       } catch (error) {
-        setResponse(`[AUTH] Status unavailable: ${error instanceof Error ? error.message : "request failed"}`);
+        setResponse(
+          `[AUTH] Status unavailable: ${error instanceof Error ? error.message : "request failed"}`,
+        );
       }
     },
   },
