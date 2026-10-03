@@ -11,13 +11,16 @@ export const Route = createFileRoute("/api/auth/start")({
             return Response.json({ ok: false, error: "Provider is required" }, { status: 400 });
           const redirectUri = new URL("/api/auth/callback", request.url).toString();
           const result = await createAuthorizationUrl(provider, redirectUri, context.env);
-          return new Response(null, {
-            status: 302,
-            headers: {
-              location: result.url,
-              "set-cookie": `aura_oauth_state=${result.state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600, aura_oauth_nonce=${result.browserNonce}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
-            },
-          });
+          const headers = new Headers({ location: result.url });
+          headers.append(
+            "set-cookie",
+            `aura_oauth_state=${result.state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+          );
+          headers.append(
+            "set-cookie",
+            `aura_oauth_nonce=${result.browserNonce}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+          );
+          return new Response(null, { status: 302, headers });
         } catch (cause) {
           return Response.json(
             {
