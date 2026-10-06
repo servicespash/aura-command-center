@@ -116,8 +116,10 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="overflow-hidden">
-        {children}
+      <body className="overflow-y-auto">
+        <div id="root" className="flex min-h-screen w-full flex-col overflow-y-auto">
+          {children}
+        </div>
         <Scripts />
       </body>
     </html>
@@ -129,9 +131,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-dvh w-screen flex-col overflow-hidden">
-        <div id="map-portal-root" className="absolute inset-0 z-0" />
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-screen w-full flex-col overflow-y-auto">
+        <div id="map-portal-root" className="absolute inset-0 z-0 pointer-events-none" />
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
           <Outlet />
         </div>
       </div>

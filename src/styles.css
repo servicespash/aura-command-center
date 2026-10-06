@@ -103,9 +103,9 @@ body.theme-stealth {
 
   body {
     margin: 0;
-    height: 100%;
-    overflow: hidden;
-    overscroll-behavior: none;
+    min-height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: auto;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-mono);
@@ -119,8 +119,8 @@ body.theme-stealth {
 
   html,
   #root {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-y: auto;
   }
 
   h1,

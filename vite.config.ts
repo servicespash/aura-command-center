@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    resolve: {
+      alias: {
+        "node:async_hooks": "/src/lib/mock-async-hooks.ts",
+      },
+    },
+  },
 });

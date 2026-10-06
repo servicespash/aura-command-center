@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AccessGate } from "@/components/aura/AccessGate";
 import { CommandDeck } from "@/components/aura/CommandDeck";
+import { RecoveryPortal } from "@/components/aura/RecoveryPortal";
+import { LocalCredentialManager } from "@/services/security/LocalCredentialManager";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,10 +29,59 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [granted, setGranted] = useState(false);
-  const grant = useCallback(() => setGranted(true), []);
-  return granted ? (
-    <CommandDeck onLock={() => setGranted(false)} />
-  ) : (
-    <AccessGate onGranted={grant} />
-  );
+  const [needsRecovery, setNeedsRecovery] = useState(false);
+
+  // Auto-sync listener & session restoration on mount
+  useEffect(() => {
+    const isVaultActive = LocalCredentialManager.isSessionActive();
+    if (isVaultActive) {
+      setGranted(true);
+    } else {
+      // Check if profile exists but active session token is missing/corrupted
+      const profile = LocalCredentialManager.getProfile();
+      if (profile && !isVaultActive) {
+        // We have a profile, but session needs recovery check or re-auth
+        // If there's a stored profile, we can offer RecoveryPortal if they were previously active
+        const lastActive = profile.lastActive || 0;
+        const withinWindow = Date.now() - lastActive < 24 * 60 * 60 * 1000; // 24 hours
+        if (withinWindow) {
+          setNeedsRecovery(true);
+        }
+      }
+    }
+  }, []);
+
+  const grant = useCallback(() => {
+    setGranted(true);
+    setNeedsRecovery(false);
+  }, []);
+
+  const handleLock = useCallback(() => {
+    LocalCredentialManager.clearVault();
+    setGranted(false);
+    setNeedsRecovery(false);
+  }, []);
+
+  const handleFullSignOut = useCallback(() => {
+    LocalCredentialManager.clearVault();
+    setNeedsRecovery(false);
+    setGranted(false);
+  }, []);
+
+  if (needsRecovery && !granted) {
+    return (
+      <div className="relative min-h-screen bg-background text-foreground">
+        <CommandDeck onLock={handleLock} />
+        <RecoveryPortal
+          onRecovered={() => {
+            setNeedsRecovery(false);
+            setGranted(true);
+          }}
+          onFullSignOut={handleFullSignOut}
+        />
+      </div>
+    );
+  }
+
+  return granted ? <CommandDeck onLock={handleLock} /> : <AccessGate onGranted={grant} />;
 }

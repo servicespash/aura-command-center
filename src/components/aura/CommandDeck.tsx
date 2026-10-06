@@ -22,6 +22,7 @@ import { useKeyboardShortcut } from "@/hooks/use-keyboard";
 import { Button } from "../ui/button";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { FlightFeedModule } from "./FlightFeedModule";
+import { GlobalActivityMonitor } from "./GlobalActivityMonitor";
 
 type MobilePanel = "threats" | "tenants" | "terminal";
 
@@ -274,7 +275,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
   useKeyboardShortcut("g", () => setMapViewMode("globe"));
 
   return (
-    <main className="relative flex h-dvh w-screen flex-col overflow-hidden bg-transparent text-foreground">
+    <main className="relative flex min-h-screen w-full flex-col overflow-y-auto bg-transparent text-foreground">
       <ScanlineOverlay />
       <header className="z-50 grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-card/95 px-3 backdrop-blur-md md:h-16 md:px-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -286,6 +287,7 @@ export function CommandDeck({ onLock }: { onLock: () => void }) {
           <div className="hidden items-center gap-5 lg:flex">
             <Metric label="Nodes" value={String(activeNodes)} />
             <Metric label="Critical" value={String(critical)} alert={critical > 0} />
+            <GlobalActivityMonitor />
           </div>
         </div>
         <nav className="flex shrink-0 items-center gap-1" aria-label="System controls">
