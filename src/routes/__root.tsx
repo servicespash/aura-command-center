@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { VaultDiagnosticsProvider } from "@/components/aura/VaultDiagnosticsProvider";
 
 function NotFoundComponent() {
   return (
@@ -131,12 +132,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen w-full flex-col overflow-y-auto">
-        <div id="map-portal-root" className="absolute inset-0 z-0 pointer-events-none" />
-        <div className="relative min-h-0 flex-1 overflow-y-auto">
-          <Outlet />
+      <VaultDiagnosticsProvider>
+        <div className="flex min-h-screen w-full flex-col overflow-y-auto">
+          <div id="map-portal-root" className="absolute inset-0 z-0 pointer-events-none" />
+          <div className="relative min-h-0 flex-1 overflow-y-auto">
+            <Outlet />
+          </div>
         </div>
-      </div>
+      </VaultDiagnosticsProvider>
     </QueryClientProvider>
   );
 }

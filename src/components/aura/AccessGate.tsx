@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { generateTotp, LocalCredentialManager } from "@/services/security/LocalCredentialManager";
 import { StorageDiagnosticOverlay } from "@/components/aura/StorageDiagnosticOverlay";
+import { VaultHealthMonitor } from "@/components/aura/VaultHealthMonitor";
+import { DiagnosticDashboard } from "@/components/aura/DiagnosticDashboard";
+import { useVaultInitializationTracer } from "@/hooks/useVaultInitializationTracer";
+import { useInitializationWatchdog } from "@/hooks/useInitializationWatchdog";
 
 export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -21,6 +25,18 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const dismissToast = useAuthStore((state) => state.dismissToast);
   const clearProvisionedCreds = useAuthStore((state) => state.clearProvisionedCreds);
 
+  const { attemptCount, hasExceededMaxAttempts, recordAttempt, resetAttempts, MAX_INIT_ATTEMPTS } =
+    useVaultInitializationTracer();
+
+  const {
+    status: watchdogStatus,
+    elapsedTimeMs,
+    resetStorageAndRetry,
+  } = useInitializationWatchdog(isInitialized, () => {
+    resetAttempts();
+    checkSession();
+  });
+
   const [emailInput, setEmailInput] = useState("");
   const [totpInput, setTotpInput] = useState("");
   const [sessionKeyInput, setSessionKeyInput] = useState("");
@@ -29,12 +45,15 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const [liveCode, setLiveCode] = useState<string>("------");
   const [timeRemaining, setTimeRemaining] = useState<number>(30);
 
+  const hasInitializedRef = useRef(false);
+
   useEffect(() => {
-    console.log("[AccessGate] useEffect checkSession, isInitialized:", isInitialized);
-    if (!isInitialized) {
+    if (!isInitialized && !hasExceededMaxAttempts && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      recordAttempt("CHECK_SESSION_INIT");
       checkSession();
     }
-  }, [checkSession, isInitialized]);
+  }, [isInitialized, hasExceededMaxAttempts, recordAttempt, checkSession]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -103,11 +122,42 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
     setTotpInput(currentCode);
   };
 
+  if (hasExceededMaxAttempts || watchdogStatus === "INITIALIZATION_FAILED") {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4 py-8 bg-background text-foreground">
+        <div className="w-full max-w-md panel border border-destructive/50 bg-card p-6 text-center space-y-4 shadow-2xl">
+          <div className="size-3 rounded-full bg-destructive mx-auto animate-ping" />
+          <h2 className="text-sm font-bold font-display text-destructive uppercase tracking-widest">
+            INITIALIZATION_FAILED (Vault Hang Detected)
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Vault initialization hung for {(elapsedTimeMs / 1000).toFixed(1)}s or exceeded max
+            attempts ({MAX_INIT_ATTEMPTS}). Local storage sandbox may be locked or restricted.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              hasInitializedRef.current = false;
+              resetStorageAndRetry();
+            }}
+            className="w-full rounded bg-destructive py-2.5 text-xs font-display text-destructive-foreground uppercase tracking-widest hover:bg-destructive/90 transition-all cursor-pointer shadow-lg"
+          >
+            Clear Storage &amp; Hard Reset Vault
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (!isInitialized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="text-center font-mono text-xs text-primary animate-pulse">
-          Initializing Local Cryptographic Vault…
+        <div className="text-center font-mono text-xs text-primary animate-pulse space-y-2">
+          <p>Initializing Local Cryptographic Vault…</p>
+          <p className="text-[10px] text-muted-foreground">
+            Attempt {attemptCount} of {MAX_INIT_ATTEMPTS} · Elapsed:{" "}
+            {(elapsedTimeMs / 1000).toFixed(1)}s
+          </p>
         </div>
       </div>
     );
@@ -115,6 +165,9 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-8 bg-background text-foreground overflow-y-auto">
+      {/* Real-time Diagnostic Dashboard */}
+      <DiagnosticDashboard />
+
       {/* Storage Diagnostic Exception Overlay */}
       <StorageDiagnosticOverlay />
 
@@ -145,6 +198,9 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
         </div>
 
         <div className="panel scanline rounded-lg p-5 sm:p-6 space-y-5 border border-primary/20 bg-background/90 shadow-2xl max-h-[85vh] overflow-y-auto overscroll-contain">
+          {/* Storage Health Monitor */}
+          <VaultHealthMonitor />
+
           {/* Mode Switcher */}
           <div className="flex border-b border-primary/10 pb-3 text-xs font-display tracking-wider">
             <button
@@ -315,7 +371,7 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
                   )}
                 </div>
                 <input
-                  id="auth-totp"
+                  id="auth-otp"
                   type="text"
                   maxLength={6}
                   required

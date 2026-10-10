@@ -77,9 +77,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     console.log("Action initiated for:", email);
     set({ isProvisioning: true, error: null });
 
-    // Debugger breakpoint as requested to trace execution in sandbox inspector
-    debugger;
-
     try {
       const permCheck = LocalCredentialManager.checkLocalStoragePermissions();
       if (!permCheck.success) {
