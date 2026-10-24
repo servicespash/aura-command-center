@@ -15,19 +15,12 @@ const STAGES = [
     type: "password",
   },
 ] as const;
-
-const PROVIDERS = [
-  { id: "google", label: "Google / OIDC" },
-  { id: "github", label: "GitHub OAuth" },
-];
-
 export function AccessGate({ onGranted }: { onGranted: () => void }) {
   const [stage, setStage] = useState<Stage>(0);
   const [values, setValues] = useState(["", "", ""]);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const current = STAGES[stage];
-
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -57,12 +50,6 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
       setChecking(false);
     }
   };
-
-  const startProvider = (provider: string) => {
-    setError(null);
-    window.location.assign(`/api/auth/start?provider=${encodeURIComponent(provider)}`);
-  };
-
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12">
       <div className="w-full max-w-md">
@@ -71,31 +58,9 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
           <h1 className="text-glow mt-3 text-3xl font-bold text-primary">AURA-NET</h1>
           <p className="mt-3 text-xs text-muted-foreground">Server-verified command perimeter.</p>
         </div>
-
         <div className="panel scanline rounded-lg p-6">
-          <div className="space-y-2">
-            <p className="label-hud">External identity providers</p>
-            <div className="grid grid-cols-2 gap-2">
-              {PROVIDERS.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => startProvider(provider.id)}
-                  className="rounded border border-primary/20 bg-background/60 px-3 py-2 text-[10px] font-display uppercase tracking-wider text-primary transition-colors hover:border-primary/60"
-                >
-                  {provider.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              Provider credentials and authorization codes are handled server-side.
-            </p>
-          </div>
-
-          <div className="my-5 border-t border-primary/10" />
-
-          <div className="flex items-center justify-between">
-            <span className="label-hud">Local factor {stage + 1} / 3</span>
+          <div className="mt-5 flex items-center justify-between">
+            <span className="label-hud">Factor {stage + 1} / 3</span>
             <div className="flex gap-1.5">
               {[0, 1, 2].map((i) => (
                 <span
@@ -111,7 +76,6 @@ export function AccessGate({ onGranted }: { onGranted: () => void }) {
               ))}
             </div>
           </div>
-
           <form onSubmit={submit} className="mt-6 space-y-4">
             <label className="label-hud" htmlFor="factor">
               {current.label}

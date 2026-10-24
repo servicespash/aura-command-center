@@ -10,93 +10,116 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
-import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
-import { Route as ApiOnboardingDomainVerifyRouteImport } from './routes/api/onboarding/domain/verify'
+import { Route as ApiAuthStartRouteImport } from './routes/api/auth/start'
+import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
 import { Route as ApiP2pSignalRouteImport } from './routes/api/p2p/signal'
 import { Route as ApiP2pTokenRouteImport } from './routes/api/p2p/token'
+import { Route as ApiOnboardingDomainVerifyRouteImport } from './routes/api/onboarding/domain/verify'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
-const ApiAuthStartRoute = ApiAuthStartRouteImport.update({
-  id: '/api/auth/start',
-  path: '/api/auth/start',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
   id: '/api/auth/callback',
   path: '/api/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-
+const ApiAuthStartRoute = ApiAuthStartRouteImport.update({
+  id: '/api/auth/start',
+  path: '/api/auth/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthVerifyRoute = ApiAuthVerifyRouteImport.update({
   id: '/api/auth/verify',
   path: '/api/auth/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
-
-const ApiOnboardingDomainVerifyRoute = ApiOnboardingDomainVerifyRouteImport.update({
-  id: '/api/onboarding/domain/verify',
-  path: '/api/onboarding/domain/verify',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ApiP2pTokenRoute = ApiP2pTokenRouteImport.update({
-  id: '/api/p2p/token',
-  path: '/api/p2p/token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 const ApiP2pSignalRoute = ApiP2pSignalRouteImport.update({
   id: '/api/p2p/signal',
   path: '/api/p2p/signal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiP2pTokenRoute = ApiP2pTokenRouteImport.update({
+  id: '/api/p2p/token',
+  path: '/api/p2p/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOnboardingDomainVerifyRoute =
+  ApiOnboardingDomainVerifyRouteImport.update({
+    id: '/api/onboarding/domain/verify',
+    path: '/api/onboarding/domain/verify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
-  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
   '/api/p2p/signal': typeof ApiP2pSignalRoute
   '/api/p2p/token': typeof ApiP2pTokenRoute
+  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
-  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
   '/api/p2p/signal': typeof ApiP2pSignalRoute
+  '/api/p2p/token': typeof ApiP2pTokenRoute
+  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/auth/callback': typeof ApiAuthCallbackRoute
+  '/api/auth/start': typeof ApiAuthStartRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
-  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
   '/api/p2p/signal': typeof ApiP2pSignalRoute
+  '/api/p2p/token': typeof ApiP2pTokenRoute
+  '/api/onboarding/domain/verify': typeof ApiOnboardingDomainVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
+  fullPaths:
+    | '/'
+    | '/api/auth/callback'
+    | '/api/auth/start'
+    | '/api/auth/verify'
+    | '/api/p2p/signal'
+    | '/api/p2p/token'
+    | '/api/onboarding/domain/verify'
   fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/api/auth/callback'
+    | '/api/auth/start'
+    | '/api/auth/verify'
+    | '/api/p2p/signal'
+    | '/api/p2p/token'
+    | '/api/onboarding/domain/verify'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/auth/callback'
+    | '/api/auth/start'
+    | '/api/auth/verify'
+    | '/api/p2p/signal'
+    | '/api/p2p/token'
+    | '/api/onboarding/domain/verify'
   fileRoutesById: FileRoutesById
-  to: '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
-  id: '__root__' | '/' | '/api/auth/start' | '/api/auth/callback' | '/api/auth/verify' | '/api/onboarding/domain/verify' | '/api/p2p/signal' | '/api/p2p/token'
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiAuthStartRoute: typeof ApiAuthStartRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
+  ApiAuthStartRoute: typeof ApiAuthStartRoute
   ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
-  ApiOnboardingDomainVerifyRoute: typeof ApiOnboardingDomainVerifyRoute
   ApiP2pSignalRoute: typeof ApiP2pSignalRoute
   ApiP2pTokenRoute: typeof ApiP2pTokenRoute
+  ApiOnboardingDomainVerifyRoute: typeof ApiOnboardingDomainVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -108,18 +131,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/start': {
-      id: '/api/auth/start'
-      path: '/api/auth/start'
-      fullPath: '/api/auth/start'
-      preLoaderRoute: typeof ApiAuthStartRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/auth/callback': {
       id: '/api/auth/callback'
       path: '/api/auth/callback'
       fullPath: '/api/auth/callback'
       preLoaderRoute: typeof ApiAuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/start': {
+      id: '/api/auth/start'
+      path: '/api/auth/start'
+      fullPath: '/api/auth/start'
+      preLoaderRoute: typeof ApiAuthStartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/verify': {
@@ -129,11 +152,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/onboarding/domain/verify': {
-      id: '/api/onboarding/domain/verify'
-      path: '/api/onboarding/domain/verify'
-      fullPath: '/api/onboarding/domain/verify'
-      preLoaderRoute: typeof ApiOnboardingDomainVerifyRouteImport
+    '/api/p2p/signal': {
+      id: '/api/p2p/signal'
+      path: '/api/p2p/signal'
+      fullPath: '/api/p2p/signal'
+      preLoaderRoute: typeof ApiP2pSignalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/p2p/token': {
@@ -143,11 +166,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiP2pTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/p2p/signal': {
-      id: '/api/p2p/signal'
-      path: '/api/p2p/signal'
-      fullPath: '/api/p2p/signal'
-      preLoaderRoute: typeof ApiP2pSignalRouteImport
+    '/api/onboarding/domain/verify': {
+      id: '/api/onboarding/domain/verify'
+      path: '/api/onboarding/domain/verify'
+      fullPath: '/api/onboarding/domain/verify'
+      preLoaderRoute: typeof ApiOnboardingDomainVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -155,12 +178,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiAuthStartRoute: ApiAuthStartRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
+  ApiAuthStartRoute: ApiAuthStartRoute,
   ApiAuthVerifyRoute: ApiAuthVerifyRoute,
-  ApiOnboardingDomainVerifyRoute: ApiOnboardingDomainVerifyRoute,
   ApiP2pSignalRoute: ApiP2pSignalRoute,
   ApiP2pTokenRoute: ApiP2pTokenRoute,
+  ApiOnboardingDomainVerifyRoute: ApiOnboardingDomainVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

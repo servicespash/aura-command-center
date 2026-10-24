@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { AviationTelemetry } from "@/engine/osint/aviation";
+import { SeismicTelemetry } from "@/engine/osint/seismicTelemetry";
 import { useMapStore } from "@/store/mapStore";
 import { useTelemetryStore } from "@/store/telemetryStore";
-import { globalEvents, EVENTS } from "@/lib/events";
 import { ThreatHeatmap } from "./ThreatHeatmap";
 
 type TelemetryFeatureCollection = GeoJSON.FeatureCollection<
@@ -19,22 +19,25 @@ type Props = {
 
 export function MapLibreCanvas({ zoom, viewMode }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const pulseFeatures = useRef<
-    Record<string, GeoJSON.Feature<GeoJSON.Point, GeoJSON.GeoJsonProperties>>
-  >({});
-  const [map, setMap] = useState<maplibregl.Map | null>(null);
-  const { setStreamTarget } = useMapStore();
+  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+
+  const setStreamTarget = useMapStore((state) => state.setStreamTarget);
+  const cameraCommand = useMapStore((state) => state.cameraCommand);
+  const clearCameraCommand = useMapStore((state) => state.clearCameraCommand);
+  const setViewportBounds = useMapStore((state) => state.setViewportBounds);
   const events = useTelemetryStore((state) => state.events);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (viewMode !== "map" || !mapContainer.current) return;
 
-    if (map) {
-      map.resize();
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.resize();
       return;
     }
 
-    const mapInstance = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: mapContainer.current,
       style: {
         version: 8,
@@ -55,45 +58,66 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
           },
         ],
       },
-      center: [0, 20],
+      center: [32.5825, 0.3476],
       zoom: zoom,
       interactive: true,
       attributionControl: false,
     });
 
-    mapInstance.on("load", async () => {
-      const bounds = mapInstance.getBounds();
-      const initialData = await AviationTelemetry.queryViewport(
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      );
+    mapInstanceRef.current = map;
+    abortControllerRef.current = new AbortController();
+    const currentSignal = abortControllerRef.current.signal;
 
-      mapInstance.addSource("aviation-telemetry", {
+    let disposed = false;
+    let latestRequestId = 0;
+
+    map.on("error", (event) => {
+      if (disposed || mapInstanceRef.current !== map) return;
+      console.error("[MapLibreCanvas] Map rendering error encountered:", event.error);
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstanceRef.current === map) {
+        map.resize();
+      }
+    });
+    resizeObserver.observe(mapContainer.current);
+
+    map.on("load", async () => {
+      if (disposed || mapInstanceRef.current !== map || currentSignal.aborted) return;
+
+      map.addSource("seismic-events", {
         type: "geojson",
-        data: initialData as TelemetryFeatureCollection,
+        data: { type: "FeatureCollection", features: [] },
         cluster: false,
       });
 
-      mapInstance.addLayer({
-        id: "aviation-points",
+      map.addLayer({
+        id: "seismic-points",
         type: "circle",
-        source: "aviation-telemetry",
+        source: "seismic-events",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.5, 5, 3, 10, 6],
-          "circle-color": ["match", ["get", "type"], "satellite", "#ef4444", "#38bdf8"],
+          "circle-color": [
+            "match",
+            ["get", "type"],
+            "seismic_alert",
+            "#ef4444",
+            "seismic_node",
+            "#38bdf8",
+            "#94a3b8",
+          ],
           "circle-opacity": 0.8,
           "circle-stroke-width": 0,
         },
       });
 
-      mapInstance.addSource("threat-intel", {
+      map.addSource("threat-intel", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
 
-      mapInstance.addLayer({
+      map.addLayer({
         id: "threat-points",
         type: "circle",
         source: "threat-intel",
@@ -104,97 +128,148 @@ export function MapLibreCanvas({ zoom, viewMode }: Props) {
         },
       });
 
+      if (disposed || mapInstanceRef.current !== map) return;
+      setIsMapLoaded(true);
+
       const updateSpatialIndex = async () => {
-        const currentBounds = mapInstance.getBounds();
-        const filteredData = await AviationTelemetry.queryViewport(
-          currentBounds.getWest(),
-          currentBounds.getSouth(),
-          currentBounds.getEast(),
-          currentBounds.getNorth(),
-        );
-        (mapInstance.getSource("aviation-telemetry") as maplibregl.GeoJSONSource).setData(
-          filteredData as TelemetryFeatureCollection,
-        );
+        if (disposed || mapInstanceRef.current !== map || currentSignal.aborted) return;
+
+        const requestId = ++latestRequestId;
+        const currentBounds = map.getBounds();
+
+        setViewportBounds({
+          west: currentBounds.getWest(),
+          south: currentBounds.getSouth(),
+          east: currentBounds.getEast(),
+          north: currentBounds.getNorth(),
+        });
+
+        try {
+          const filteredData = await SeismicTelemetry.queryViewport(
+            currentBounds.getWest(),
+            currentBounds.getSouth(),
+            currentBounds.getEast(),
+            currentBounds.getNorth(),
+            currentSignal,
+          );
+
+          if (
+            disposed ||
+            currentSignal.aborted ||
+            mapInstanceRef.current !== map ||
+            requestId !== latestRequestId
+          ) {
+            return;
+          }
+
+          const source = map.getSource("seismic-events") as maplibregl.GeoJSONSource | undefined;
+          if (source) {
+            source.setData(filteredData as TelemetryFeatureCollection);
+          }
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name === "AbortError") return;
+          console.error("[MapLibreCanvas] Viewport query update failed:", error);
+        }
       };
 
-      mapInstance.on("moveend", updateSpatialIndex);
-      mapInstance.on("zoomend", updateSpatialIndex);
-      mapInstance.on(
-        "mouseenter",
-        "aviation-points",
-        () => (mapInstance.getCanvas().style.cursor = "pointer"),
-      );
-      mapInstance.on(
-        "mouseleave",
-        "aviation-points",
-        () => (mapInstance.getCanvas().style.cursor = ""),
-      );
-      mapInstance.on("click", "aviation-points", (e) => {
+      map.on("moveend", updateSpatialIndex);
+
+      map.on("mouseenter", "seismic-points", () => {
+        if (map.getCanvas()) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "seismic-points", () => {
+        if (map.getCanvas()) map.getCanvas().style.cursor = "";
+      });
+
+      map.on("click", "seismic-points", (e) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
         if (!feature || feature.geometry.type !== "Point") return;
+
+        // Correctly extract ID from root GeoJSON feature or fallback to properties
+        const properties = feature.properties as Record<string, unknown> | null;
+        const rawId = feature["id"] ?? properties?.["id"];
+        const entityId = rawId !== undefined && rawId !== null ? String(rawId).trim() : "";
+        if (!entityId) return;
+
         const coords = feature.geometry.coordinates as [number, number];
+        const [lon, lat] = coords;
+
+        if (
+          typeof lon !== "number" ||
+          typeof lat !== "number" ||
+          !Number.isFinite(lon) ||
+          !Number.isFinite(lat) ||
+          lon < -180 ||
+          lon > 180 ||
+          lat < -90 ||
+          lat > 90
+        ) {
+          return;
+        }
+
         setStreamTarget({
-          id: String((feature.properties as Record<string, unknown> | null)?.["id"] ?? ""),
-          lat: coords[1],
-          lon: coords[0],
+          id: entityId,
+          lat,
+          lon,
         });
       });
 
-      setTimeout(() => mapInstance.resize(), 300);
-      setMap(mapInstance);
+      void updateSpatialIndex();
     });
 
     return () => {
-      mapInstance.remove();
-      setMap(null);
-    };
-  }, [viewMode]);
-
-  useEffect(() => {
-    if (map && map.getSource("threat-intel")) {
-      const geojson: TelemetryFeatureCollection = {
-        type: "FeatureCollection",
-        features: events.map((e) => ({
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [e.lon || 0, e.lat || 0] },
-          properties: { ...e },
-        })),
-      };
-      (map.getSource("threat-intel") as maplibregl.GeoJSONSource).setData(
-        geojson as GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>,
-      );
-    }
-  }, [events, map]);
-
-  useEffect(() => {
-    const handleFlyTo = (payload: { center: [number, number]; zoom: number }) => {
-      if (map) {
-        map.flyTo({
-          center: payload.center,
-          zoom: payload.zoom || 6,
-          speed: 1.2,
-          curve: 1.4,
-          essential: true,
-        });
+      disposed = true;
+      latestRequestId++;
+      resizeObserver.disconnect();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      if (mapInstanceRef.current === map) {
+        map.remove();
+        mapInstanceRef.current = null;
+      }
+      setIsMapLoaded(false);
+      setViewportBounds(null);
     };
-    globalEvents.on(EVENTS.MAP_FLY_TO, handleFlyTo);
-    return () => {
-      globalEvents.off(EVENTS.MAP_FLY_TO, handleFlyTo);
-    };
-  }, [map]);
+  }, [viewMode, setViewportBounds, setStreamTarget]);
 
   useEffect(() => {
-    if (map) map.easeTo({ zoom });
-  }, [zoom, map]);
+    const map = mapInstanceRef.current;
+    if (!map || !isMapLoaded || !cameraCommand) return;
+
+    map.flyTo({
+      center: [...cameraCommand.coordinates],
+      zoom: cameraCommand.zoom,
+      speed: 1.2,
+      curve: 1.4,
+      essential: true,
+    });
+
+    clearCameraCommand(cameraCommand.id);
+  }, [cameraCommand, clearCameraCommand, isMapLoaded]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (
+      map &&
+      isMapLoaded &&
+      Number.isFinite(zoom) &&
+      !cameraCommand &&
+      Math.abs(map.getZoom() - zoom) > 0.01
+    ) {
+      map.easeTo({ zoom });
+    }
+  }, [zoom, isMapLoaded, cameraCommand]);
 
   return (
     <div ref={mapContainer} className="absolute inset-0 h-full w-full">
       <div className="absolute top-4 left-4 z-10 border-2 border-dashed border-red-500 bg-black/70 text-red-400 p-3 text-xs font-mono tracking-wider pointer-events-none">
         Map Initialized
       </div>
-      {map && <ThreatHeatmap map={map} events={events} />}
+      {isMapLoaded && mapInstanceRef.current && (
+        <ThreatHeatmap map={mapInstanceRef.current} events={events} />
+      )}
     </div>
   );
 }
