@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     const permCheck = LocalCredentialManager.checkLocalStoragePermissions();
     if (!permCheck.success) {
-      set({ error: permCheck.error, isInitialized: true });
+      set({ error: permCheck.error ?? null, isInitialized: true });
       return;
     }
     const active = LocalCredentialManager.isSessionActive();

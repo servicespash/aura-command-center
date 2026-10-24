@@ -277,4 +277,8 @@ export const LocalCredentialManager = {
       sessionStorage.clear();
     }
   },
+
+  clearVault(): void {
+    this.clearSession();
+  },
 };
