@@ -25,13 +25,11 @@ export const Route = createFileRoute("/api/auth/callback")({
           if (!code || !state) throw new Error("Authorization callback is incomplete");
 
           const storedState = cookie(request, "aura_oauth_state");
-          const storedNonce = cookie(request, "aura_oauth_nonce");
           if (!storedState || storedState !== state)
             throw new Error("Authorization state mismatch");
 
           const verified = await verifyOAuthState(state, context.env);
-          if (!verified || !storedNonce || verified.nonce !== storedNonce)
-            throw new Error("Authorization state expired, invalid, or not bound to this browser");
+          if (!verified) throw new Error("Authorization state expired or invalid");
 
           const redirectUri = new URL("/api/auth/callback", request.url).toString();
           const claims = await exchangeCallback(verified.provider, code, redirectUri, context.env);
@@ -45,7 +43,6 @@ export const Route = createFileRoute("/api/auth/callback")({
               "set-cookie": [
                 session,
                 "aura_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
-                "aura_oauth_nonce=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
               ].join(", "),
             },
           });

@@ -1,47 +1,79 @@
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { Map as MapLibreMap } from "maplibre-gl";
+import type { Position } from "../../domain/geo/coordinates";
+import { assertPosition } from "../../domain/geo/coordinates";
 
-const STYLE_URL =
-  import.meta.env["VITE_MAP_STYLE_URL"] || "https://tiles.openfreemap.org/styles/liberty";
+export interface SpatialEngineConfig {
+  container: string | HTMLElement;
+  styleUrl: string;
+  initialCenter?: Position;
+  initialZoom?: number;
+}
+
+export interface FlyToOptions {
+  center: Position;
+  zoom?: number;
+}
+
+const DEFAULT_CENTER: Position = [32.5825, 0.3476];
+const DEFAULT_ZOOM = 3;
+
+const MIN_ZOOM = 0;
+const MAX_ZOOM = 24;
+
+function validateZoom(zoom: number): void {
+  if (!Number.isFinite(zoom) || zoom < MIN_ZOOM || zoom > MAX_ZOOM) {
+    throw new Error("[SpatialEngine] Invalid zoom level bounds");
+  }
+}
 
 export const SpatialEngine = {
-  initializeMap(container: string | HTMLElement) {
-    return new maplibregl.Map({
-      container,
-      style: STYLE_URL,
-      center: [0, 20],
-      zoom: 1.4,
+  initializeMap(config: SpatialEngineConfig): MapLibreMap {
+    const center = config.initialCenter ?? DEFAULT_CENTER;
+    const zoom = config.initialZoom ?? DEFAULT_ZOOM;
+
+    assertPosition(center);
+    validateZoom(zoom);
+
+    if (!config.styleUrl || !config.styleUrl.trim()) {
+      throw new Error("[SpatialEngine] Map style URL is required");
+    }
+
+    const map = new MapLibreMap({
+      container: config.container,
+      style: config.styleUrl,
+      center: [...center],
+      zoom,
       attributionControl: false,
       dragRotate: true,
       touchPitch: true,
       maxPitch: 85,
+      touchZoomRotate: true,
+      scrollZoom: true,
+      boxZoom: true,
+      dragPan: true,
+      doubleClickZoom: true,
+      keyboard: true,
     });
+
+    return map;
   },
 
-  flyTo(map: maplibregl.Map, center: [number, number], zoom = 7) {
+  flyTo(map: MapLibreMap, options: FlyToOptions): void {
+    const { center, zoom = 7 } = options;
+
+    assertPosition(center);
+    validateZoom(zoom);
+
     map.flyTo({
-      center,
+      center: [...center],
       zoom,
-      speed: 0.8,
+      speed: 1.2,
       curve: 1.4,
       essential: true,
     });
   },
 
-  async resolveGeoIP(ip: string): Promise<[number, number]> {
-    const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip.trim())}/latlong/`);
-    if (!response.ok) throw new Error(`GeoIP provider returned HTTP ${response.status}`);
-    const parts = (await response.text()).trim().split(",");
-    const latText = parts[0];
-    const lonText = parts[1];
-    if (latText === undefined || lonText === undefined) {
-      throw new Error("GeoIP provider returned incomplete coordinates");
-    }
-    const lat = Number(latText);
-    const lon = Number(lonText);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      throw new Error("GeoIP provider returned invalid coordinates");
-    }
-    return [lon, lat];
+  destroy(map: MapLibreMap): void {
+    map.remove();
   },
 };

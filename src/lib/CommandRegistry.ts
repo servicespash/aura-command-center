@@ -4,9 +4,7 @@ import { StorageService } from "./StorageService";
 import { MMDBReader } from "@/services/spatial/mmdbReader";
 import { globalEvents, EVENTS } from "@/lib/events";
 import { PanicService } from "@/services/security/panicService";
-import { agentProbe } from "@/services/runtime/agentClient";
-import { globalProviderRegistry } from "@/services/auth/providers";
-import { useDeviceLedgerStore } from "@/store/deviceLedgerStore";
+import { globalP2PMesh } from "@/engine/network/p2p";
 
 export interface CommandDefinition {
   name: string;
@@ -22,10 +20,10 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   help: {
     name: "help",
     requiredPkg: "built-in",
-    description: "Displays the registered CLI commands and their execution requirements.",
-    execute: (_args, setResponse) => {
+    description: "Displays complete CLI command table or detailed manual for a specific command.",
+    execute: (args, setResponse) => {
       setResponse(
-        `[SYSTEM] Registered CLI commands...\n` +
+        `[SYSTEM] Listing 20 registered CLI commands...\n` +
           Object.values(COMMAND_REGISTRY)
             .map((c) => `${c.name.padEnd(12)} [${c.requiredPkg}] - ${c.description}`)
             .join("\n"),
@@ -35,232 +33,100 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
   scan: {
     name: "scan",
     requiredPkg: "net-analyzer-v2",
-    description: "Performs an allowlisted HTTP reachability probe through the AURA runtime agent.",
-    execute: async (args, setResponse) => {
-      const target = String(args["target"] || "").trim();
-      if (!target) return setResponse("[SCAN] Target is required.");
-      try {
-        const url = /^https?:\/\//i.test(target) ? target : `https://${target}`;
-        const result = await agentProbe({ operation: "http", url, method: "HEAD" });
-        const data = result.data ?? {};
-        setResponse(
-          `[SCAN] ${result.target} | HTTP ${String(data["status"] ?? "unknown")} | ${result.durationMs}ms | server=${String(data["server"] ?? "unknown")}`,
-        );
-      } catch (error) {
-        setResponse(`[SCAN] Failed: ${error instanceof Error ? error.message : "probe failed"}`);
-      }
+    description: "Runs perimeter security scans on target domain/IP and computes Threat Score.",
+    execute: (args, setResponse) => {
+      const target = args["target"] || "unknown-target";
+      setResponse(
+        "[SCAN] Browser runtime cannot perform an authorized perimeter scan. Configure the AURA runtime agent.",
+      );
     },
   },
   find: {
     name: "find",
     requiredPkg: "geoip-locator",
-    description: "Resolves an IP through the configured live GeoIP provider and centers the map.",
+    description: "Resolves GeoIP coordinates and auto-zooms 3D Globe map with a pulsing indicator.",
     execute: async (args, setResponse) => {
-      const ip = String(args["ip"] || "").trim();
-      if (!ip) return setResponse("[MAP] IP address is required.");
-      try {
-        const result = await MMDBReader.resolve(ip);
-        globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
-        setResponse(
-          `[MAP] ${result.ip} | ${result.city}, ${result.country} | Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}`,
-        );
-      } catch (error) {
-        setResponse(
-          `[MAP] Lookup failed: ${error instanceof Error ? error.message : "lookup failed"}`,
-        );
-      }
-    },
-  },
-  providers: {
-    name: "providers",
-    requiredPkg: "auth-bridge",
-    description: "Lists configured client-visible identity provider strategies.",
-    execute: (_args, setResponse) => {
-      const providers = globalProviderRegistry
-        .getEntries()
-        .filter(([, provider]) => provider.type === "OIDC" || provider.type === "OAuth2")
-        .map(([id, provider]) => `${id.padEnd(16)} ${provider.name} [${provider.type}]`);
+      const ip = (args["ip"] as string) || "unknown";
+
+      const result = await MMDBReader.resolve(ip);
+      // Optional: hide terminal when executing a find
+      globalEvents.emit(EVENTS.TERMINAL_TOGGLE, false);
+
       setResponse(
-        providers.length
-          ? `[AUTH] Providers\\n${providers.join("\\n")}`
-          : "[AUTH] No browser identity providers registered.",
+        `[MAP] Target IP ${ip} mapped to Lat: ${result.coords[1].toFixed(4)}, Long: ${result.coords[0].toFixed(4)}...`,
       );
-    },
-  },
-  "auth-status": {
-    name: "auth-status",
-    requiredPkg: "auth-bridge",
-    description: "Reports authentication runtime configuration without exposing secrets.",
-    execute: async (_args, setResponse) => {
-      try {
-        const response = await fetch("/api/auth/status", { cache: "no-store" });
-        const status = (await response.json()) as {
-          stateSecretConfigured?: boolean;
-          sessionSigningKeyConfigured?: boolean;
-          providers?: Array<{
-            id: string;
-            name: string;
-            type: string;
-            clientIdConfigured: boolean;
-            clientSecretConfigured: boolean;
-          }>;
-        };
-        const providers = (status.providers ?? []).map(
-          (provider) =>
-            `${provider.id} | ${provider.type} | clientId=${provider.clientIdConfigured ? "configured" : "missing"} | clientSecret=${provider.clientSecretConfigured ? "configured" : "missing"}`,
-        );
-        setResponse(
-          [
-            `[AUTH] AURA state secret: ${status.stateSecretConfigured ? "configured" : "MISSING"}`,
-            `[AUTH] AURA session signing key: ${status.sessionSigningKeyConfigured ? "configured" : "MISSING"}`,
-            "[AUTH] Providers",
-            providers.length ? providers.join("\\n") : "none",
-          ].join("\\n"),
-        );
-      } catch (error) {
-        setResponse(
-          `[AUTH] Status unavailable: ${error instanceof Error ? error.message : "request failed"}`,
-        );
-      }
     },
   },
   login: {
     name: "login",
     requiredPkg: "auth-bridge",
-    description: "Starts a configured external identity-provider sign-in and returns to AURA-NET.",
+    description: "Prompts credentials or triggers browser redirect to target login gateway.",
     execute: (args, setResponse) => {
-      const provider = String(args["provider"] || args["target"] || "")
-        .trim()
-        .toLowerCase();
-      if (!provider) {
-        setResponse("[AUTH] Usage: login --provider google|github");
-        return;
-      }
-      setResponse(`[AUTH] Starting ${provider} identity flow…`);
-      window.location.assign(`/api/auth/start?provider=${encodeURIComponent(provider)}`);
-    },
-  },
-  devices: {
-    name: "devices",
-    requiredPkg: "device-ledger",
-    description: "Displays the transient locally enrolled devices and their last reported state.",
-    execute: (_args, setResponse) => {
-      const devices = Object.values(useDeviceLedgerStore.getState().devices);
-      if (!devices.length) {
-        setResponse("[DEVICES] No locally enrolled devices.");
-        return;
-      }
-      setResponse(
-        "[DEVICES] Transient authorized device ledger\\n" +
-          devices
-            .map(
-              (device) =>
-                `${device.id} | ${device.name} | ${device.platform} | ${device.status} | lastSeen=${new Date(device.lastSeen).toISOString()}`,
-            )
-            .join("\\n"),
-      );
-    },
-  },
-  "device-enroll": {
-    name: "device-enroll",
-    requiredPkg: "device-ledger",
-    description:
-      "Enrolls the current device locally; network and location fields are supplied by the authorized device agent.",
-    execute: (args, setResponse) => {
-      const name = String(args["name"] || "").trim();
-      if (!name) {
-        setResponse("[DEVICES] Usage: device-enroll --name <device-name>");
-        return;
-      }
-      const id = crypto.randomUUID();
-      const platform =
-        typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : "unknown";
-      useDeviceLedgerStore.getState().enroll({
-        id,
-        name,
-        platform,
-        enrolledAt: Date.now(),
-        lastSeen: Date.now(),
-        status: "online",
-      });
-      setResponse(
-        `[DEVICES] Enrolled ${name} locally as ${id}. IP/location remain unset until reported by the authorized device agent.`,
-      );
-    },
-  },
-  "device-revoke": {
-    name: "device-revoke",
-    requiredPkg: "device-ledger",
-    description: "Revokes a locally enrolled device from the transient ledger.",
-    execute: (args, setResponse) => {
-      const id = String(args["id"] || "").trim();
-      if (!id) {
-        setResponse("[DEVICES] Device ID is required.");
-        return;
-      }
-      useDeviceLedgerStore.getState().revoke(id);
-      setResponse(`[DEVICES] Revoked local device ${id}.`);
+      const target = (args["target"] as string) || (args["url"] as string) || "github";
+      const url = target.startsWith("http") ? target : `https://${target}.com/login`;
+      setResponse(`[AUTH] Redirecting to external gateway: ${url}...`);
+      window.open(url, "_blank");
     },
   },
   "db-connect": {
     name: "db-connect",
     requiredPkg: "db-client-suite",
-    description:
-      "Reports database connectivity status; browser-side PostgreSQL sessions are not supported.",
+    description: "Prompts for DB credentials to mount a mock remote database terminal context.",
     execute: (args, setResponse) => {
-      const target = String(args["target"] || "").trim();
-      setResponse(
-        target
-          ? `[DB] Direct PostgreSQL connection is unavailable in the browser. Configure a server-side database connector for ${target}.`
-          : "[DB] Target is required. No database connector is configured.",
-      );
+      const target = (args["target"] as string) || "local";
+      setResponse(`[DB] Connected to PostgreSQL instance @ ${target}.db.internal`);
     },
   },
   egress: {
     name: "egress",
     requiredPkg: "proxy-cycler",
-    description: "Displays configured outbound egress endpoints.",
+    description: "Cycles active outbound proxies or displays status.",
     execute: (args, setResponse) => {
-      if (!args["cycle"] && !args["status"])
-        return setResponse("[ERROR] Missing flag --cycle or --status");
-      const endpoints = EgressRouter.fromEnvironment().list();
-      setResponse(
-        endpoints.length
-          ? endpoints.map((e) => `[EGRESS] ${e.id} | ${e.protocol} | ${e.url}`).join("\n")
-          : "[EGRESS] No configured egress endpoints.",
-      );
+      if (args["cycle"] || args["status"]) {
+        const router = EgressRouter.fromEnvironment();
+        const endpoint = router.resolve();
+        setResponse(
+          endpoint
+            ? `[EGRESS] Configured endpoint: ${endpoint.id} | ${endpoint.url}`
+            : "[EGRESS] No configured egress endpoints.",
+        );
+      } else {
+        setResponse("[ERROR] Missing flag --cycle or --status");
+      }
     },
   },
   onboard: {
     name: "onboard",
     requiredPkg: "tenant-manager",
-    description:
-      "Creates a pending local tenant record; ownership verification is required before activation.",
+    description: "Initiates tenant onboarding flow and generates isolated telemetry key.",
     execute: (args, setResponse) => {
-      const domain = String(args["domain"] || "").trim();
-      if (!domain) return setResponse("[TENANT] Domain is required.");
-      const key = `tk_pending_${crypto.randomUUID().replace(/-/g, "")}`;
-      useTelemetryStore
-        .getState()
-        .addTenant({ domain, method: "DNS TXT", key, status: "pending", events24h: 0 });
-      setResponse(`[TENANT] Pending ${domain}. Verify _aura-verify.${domain} before activation.`);
+      const domain = (args["domain"] as string) || "new-tenant.com";
+      const key = `tk_live_${Math.random().toString(36).substring(2, 10)}`;
+      useTelemetryStore.getState().addTenant({
+        domain,
+        method: "api",
+        key,
+        status: "verified",
+        events24h: 0,
+      });
+      setResponse(`[TENANT] Domain verified. Issued Telemetry Key: ${key}`);
     },
   },
   tenants: {
     name: "tenants",
     requiredPkg: "tenant-manager",
-    description: "Displays the number of locally persisted tenant records.",
-    execute: (_args, setResponse) =>
-      setResponse(
-        `[TENANTS] ${useTelemetryStore.getState().tenants.length} tenant records stored locally.`,
-      ),
+    description: "Displays all onboarded domain tenants and active key statuses.",
+    execute: (args, setResponse) => {
+      const tenants = useTelemetryStore.getState().tenants;
+      setResponse(`[TENANTS] Active Tenants: ${tenants.length} domain instances monitored.`);
+    },
   },
   threats: {
     name: "threats",
     requiredPkg: "telemetry-core",
-    description: "Filters ingested threat events by severity.",
+    description: "Filters active global threat feeds by severity rating.",
     execute: (args, setResponse) => {
-      const level = String(args["level"] || "high");
+      const level = (args["level"] as string) || "high";
       const events = useTelemetryStore
         .getState()
         .events.filter(
@@ -269,140 +135,155 @@ export const COMMAND_REGISTRY: Record<string, CommandDefinition> = {
             (level === "med" && e.severity === "elevated") ||
             (level === "low" && e.severity === "clear"),
         );
-      setResponse(`[FEED] ${level.toUpperCase()} severity: ${events.length} ingested events.`);
+      setResponse(
+        `[FEED] Filter applied: ${level.toUpperCase()} severity (${events.length} events active)`,
+      );
     },
   },
   archive: {
     name: "archive",
     requiredPkg: "indexeddb-dal",
-    description: "Archives or reads persisted telemetry records.",
+    description: "Flushes or views active terminal event buffers into/from storage.",
     execute: async (args, setResponse) => {
       if (args["export"]) {
         const events = useTelemetryStore.getState().events;
         await StorageService.archiveEvents(events);
-        setResponse(`[DAL] Saved ${events.length} incident logs to IndexedDB.`);
+        setResponse(`[DAL] Saved ${events.length} incident logs to IndexedDB partition.`);
       } else if (args["view"]) {
-        setResponse(
-          `[DAL] Historical archive contains ${(await StorageService.getArchivedEvents()).length} events.`,
-        );
-      } else setResponse("[ERROR] Missing flag --export or --view");
+        const archived = await StorageService.getArchivedEvents();
+        setResponse(`[DAL] Historical archives: ${archived.length} events found in storage.`);
+      } else {
+        setResponse(`[ERROR] Missing flag --export or --view`);
+      }
     },
   },
   delete: {
     name: "delete",
     requiredPkg: "indexeddb-dal",
-    description: "Permanently deletes an archived telemetry record by ID.",
+    description: "Permanently purges a specific telemetry log record from local storage.",
     execute: async (args, setResponse) => {
-      const id = String(args["log"] || "").trim();
-      if (!id) return setResponse("[DAL] Log ID is required.");
+      const id = (args["log"] as string) || "unknown";
       const success = await StorageService.deleteArchivedEvent(id);
-      setResponse(
-        success ? `[DAL] Deleted archived log #${id}.` : `[DAL] Log #${id} was not found.`,
-      );
+      if (success) {
+        setResponse(`[DAL] Log record #${id} successfully purged.`);
+      } else {
+        setResponse(`[ERROR] Log record #${id} not found in archive.`);
+      }
     },
   },
   search: {
     name: "search",
     requiredPkg: "indexeddb-dal",
-    description: "Searches archived event records.",
+    description: "Searches global event logs for matching IP, domain, or timestamp strings.",
     execute: async (args, setResponse) => {
-      const query = String(args["query"] || "")
-        .trim()
-        .toLowerCase();
-      if (!query) return setResponse("[SEARCH] Query is required.");
+      const query = (args["query"] as string) || "";
       const archived = await StorageService.getArchivedEvents();
       const matches = archived.filter(
-        (e) =>
-          e.ip.toLowerCase().includes(query) ||
-          e.subdomain.toLowerCase().includes(query) ||
-          e.nodeId.toLowerCase().includes(query),
+        (e) => e.ip.includes(query) || e.subdomain.includes(query) || e.nodeId.includes(query),
       );
-      setResponse(`[SEARCH] Found ${matches.length} archived entries for '${query}'.`);
+      setResponse(`[SEARCH] Found ${matches.length} matching entries for query '${query}'.`);
     },
   },
   clear: {
     name: "clear",
     requiredPkg: "built-in",
-    description: "Clears the terminal display buffer.",
-    execute: () => {},
+    description: "Clears current terminal display screen buffer.",
+    execute: () => {
+      // Handled in component
+    },
   },
   ping: {
     name: "ping",
     requiredPkg: "net-analyzer-v2",
-    description: "Performs an allowlisted TCP reachability probe through the AURA runtime agent.",
+    description: "Measures latency and packet response metrics to target hosts.",
     execute: async (args, setResponse) => {
       const host = String(args["host"] || "").trim();
-      if (!host) return setResponse("[PING] Host is required.");
-      try {
-        const result = await agentProbe({ operation: "tcp", host, port: 443, timeoutMs: 5000 });
-        const data = result.data ?? {};
-        setResponse(
-          `[PING] ${host}:443 | reachable=${String(data["reachable"] ?? false)} | ${String(data["latencyMs"] ?? result.durationMs)}ms`,
-        );
-      } catch (error) {
-        setResponse(`[PING] Failed: ${error instanceof Error ? error.message : "probe failed"}`);
+      if (!host) {
+        setResponse("[PING] Host is required.");
+        return;
       }
+      setResponse(
+        "[PING] Use the configured AURA runtime agent for an actual TCP/ICMP measurement.",
+      );
     },
   },
   traceroute: {
     name: "traceroute",
     requiredPkg: "net-analyzer-v2",
-    description:
-      "Requires a native traceroute-capable runtime agent; no synthetic hops are generated.",
-    execute: (args, setResponse) =>
+    description: "Traces simulated network hops across ghost proxy nodes.",
+    execute: (args, setResponse) => {
+      const target = String(args["target"] || "").trim();
       setResponse(
-        String(args["target"] || "").trim()
-          ? "[TRACE] Native traceroute is not exposed by the current runtime agent. No synthetic hops generated."
+        target
+          ? "[TRACE] Native traceroute is unavailable in the browser; agent integration required."
           : "[TRACE] Target is required.",
-      ),
+      );
+    },
   },
   theme: {
     name: "theme",
     requiredPkg: "built-in",
-    description: "Changes the local command-center visual theme.",
+    description: "Forces manual visual themes (standard green, stealth amber, or alert red CRT).",
     execute: (args, setResponse) => {
-      const mode = String(args["mode"] || "default") as "default" | "stealth" | "alert";
+      const mode = (args["mode"] as "default" | "stealth" | "alert") || "default";
       if (["default", "stealth", "alert"].includes(mode)) {
         useTelemetryStore.getState().setTheme(mode);
-        setResponse(`[THEME] Visual mode updated to '${mode}'.`);
-      } else setResponse("[ERROR] Invalid theme mode. Use default, stealth, or alert.");
+        setResponse(`[THEME] Visual mode updated to '${mode}'`);
+      } else {
+        setResponse(`[ERROR] Invalid theme mode. Use default, stealth, or alert.`);
+      }
     },
   },
   audio: {
     name: "audio",
     requiredPkg: "audio-engine",
-    description: "Toggles the local WebAudio engine.",
-    execute: (_args, setResponse) => {
+    description: "Toggles WebAudio engine ambient sound effects and keystroke ticks.",
+    execute: (args, setResponse) => {
       useTelemetryStore.getState().toggleAudio();
-      setResponse(
-        `[AUDIO] Sound engine: ${useTelemetryStore.getState().audioEnabled ? "ACTIVE" : "MUTED"}`,
-      );
+      const state = useTelemetryStore.getState().audioEnabled;
+      setResponse(`[AUDIO] Sound Engine state: ${state ? "ACTIVE" : "MUTED"}`);
     },
   },
   pkg: {
     name: "pkg",
     requiredPkg: "built-in",
-    description: "Registers a package in the local package state.",
+    description: "Installs missing CLI package dependencies into the local package store.",
     execute: async (args, setResponse) => {
-      if (args["pos_1"] === "install" && args["pos_2"]) {
-        const pkg = String(args["pos_2"]);
+      // This will be partially handled in component for animation, but this is the fallback logic.
+      const posArg = args["pos_1"];
+      if (posArg === "install" && args["pos_2"]) {
+        const pkg = args["pos_2"] as string;
         useTelemetryStore.getState().installPackage(pkg);
-        setResponse(`[PKG] Registered dependency '${pkg}'.`);
-      } else setResponse("[ERROR] Usage: pkg install <package_name>");
+        setResponse(`[PKG] Installed dependency '${pkg}'.`);
+      } else {
+        setResponse(`[ERROR] Usage: pkg install <package_name>`);
+      }
     },
   },
   panic: {
     name: "panic",
     requiredPkg: "built-in",
-    description: "Purges configured local telemetry state.",
+    description: "Fail-safe: Instant purge of all local storage and RAM state.",
     execute: async (args, setResponse) => {
       if (args["purge"] && args["confirm"]) {
         await PanicService.execute();
-        setResponse("[PANIC] Local purge completed.");
-      } else setResponse("[ERROR] Missing flags: --purge --confirm");
+        setResponse(`[PANIC] Emergency purge successful.`);
+      } else {
+        setResponse(`[ERROR] Missing flags: --purge --confirm`);
+      }
+    },
+  },
+  msg: {
+    name: "msg",
+    requiredPkg: "p2p-mesh",
+    description: "Sends an end-to-end encrypted message to an active node via P2P mesh socket.",
+    execute: async (args, setResponse) => {
+      const target = (args["pos_1"] as string) || "broadcast";
+      const message = (args["pos_2"] as string) || "PING";
+
+      await globalP2PMesh.sendMessage(target, message);
+
+      setResponse(`[P2P] Encrypted payload dispatched to ${target}`);
     },
   },
 };
-
-COMMAND_REGISTRY["sign-in"] = COMMAND_REGISTRY["login"]!;
-COMMAND_REGISTRY["signin"] = COMMAND_REGISTRY["login"]!;

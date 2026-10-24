@@ -142,7 +142,10 @@ const ChartTooltipContent = React.forwardRef<
     },
     ref,
   ) => {
-    const payload = (payloadProp ?? []) as unknown as ChartPayloadItem[];
+    const payload = React.useMemo(
+      () => (payloadProp ?? []) as unknown as ChartPayloadItem[],
+      [payloadProp],
+    );
     const { config } = useChart();
 
     const tooltipLabel = React.useMemo(() => {
